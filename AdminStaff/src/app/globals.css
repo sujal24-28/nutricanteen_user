@@ -1,0 +1,18 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-brown: #5D4037;
+  --color-brand-brown-light: #8D6E63;
+  --color-brand-brown-dark: #3E2723;
+  --color-brand-gold: #FFB300;
+  --color-brand-gold-light: #FFCA28;
+  --color-brand-gold-dark: #FF8F00;
+  --color-brand-white: #FFFFFF;
+  --color-brand-offwhite: #FAFAFA;
+}
+
+body {
+  background-color: var(--color-brand-offwhite);
+  color: var(--color-brand-brown-dark);
+}
+
