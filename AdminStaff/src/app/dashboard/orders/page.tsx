@@ -9,7 +9,7 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/orders');
+      const res = await fetch('/api/orders?t=' + Date.now(), { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setOrders(data);

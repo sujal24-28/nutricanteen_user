@@ -9,7 +9,7 @@ export default function MenuPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const fetchMenu = async () => {
-    const res = await fetch('/api/menu');
+    const res = await fetch('/api/menu?t=' + Date.now(), { cache: 'no-store' });
     if (res.ok) setMenu(await res.json());
   };
 
@@ -72,7 +72,17 @@ export default function MenuPage() {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label className="block text-sm">Name</label><input required className="w-full border p-2 rounded" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
             <div><label className="block text-sm">Price (?)</label><input required type="number" step="0.01" className="w-full border p-2 rounded" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} /></div>
-            <div><label className="block text-sm">Category</label><input required className="w-full border p-2 rounded" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} /></div>
+            <div>
+              <label className="block text-sm">Category</label>
+              <select required className="w-full border p-2 rounded bg-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <option value="breakfast">Morning Recess (breakfast)</option>
+                <option value="lunch">Hot Lunch Meals (lunch)</option>
+                <option value="snacks">Nutri-Snacks (snacks)</option>
+                <option value="bakery">Bakery & Sweets (bakery)</option>
+                <option value="drinks">Fresh Drinks & Shakes (drinks)</option>
+                <option value="general">General (Other)</option>
+              </select>
+            </div>
             <div>
               <label className="block text-sm">Availability</label>
               <select className="w-full border p-2 rounded" value={formData.is_available.toString()} onChange={e => setFormData({...formData, is_available: e.target.value === 'true'})}>
