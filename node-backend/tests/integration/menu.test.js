@@ -54,6 +54,21 @@ describe('Menu Integration Tests', () => {
     expect(res.body.data.price).toBe(10.99); // Returned as number because of parseFloat in service
   });
 
+  it('should allow admin to upload a photo for menu item', async () => {
+    const res = await request(app)
+      .post('/api/v1/menu')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .field('name', 'Pasta with Image')
+      .field('price', 12.99)
+      .field('category', 'Lunch')
+      .attach('image', Buffer.from('fake-image-content'), 'fake.png');
+
+    expect(res.statusCode).toEqual(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.image_url).toBeDefined();
+    expect(res.body.data.image_url).toMatch(/^\/uploads\//);
+  });
+
   it('should allow admin to delete menu item', async () => {
     const item = await MenuItem.create({
       name: 'Soda',

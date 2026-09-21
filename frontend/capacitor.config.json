@@ -1,5 +1,9 @@
 {
   "appId": "com.school.nutricanteen",
   "appName": "NutriCanteen",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http"
+  }
 }

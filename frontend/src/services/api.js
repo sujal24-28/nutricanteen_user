@@ -59,6 +59,13 @@ export const getStoredCustomHost = () => {
   return PUBLIC_TUNNEL_HOST;
 };
 
+export const getServerUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const base = getApiBase().replace(/\/api\/v1\/?$/, '');
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
 export const testHostConnection = async (hostUrl) => {
   let clean = (hostUrl || PUBLIC_TUNNEL_HOST).trim().replace(/\/+$/, '');
   if (!clean.endsWith('/api/v1') && !clean.includes('/api/v1/')) {
@@ -144,7 +151,7 @@ export const safeFetch = async (endpoint, options = {}, isAuth = false) => {
     const url = `${base}${cleanEndpoint}`;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const res = await fetch(url, {
         ...options,

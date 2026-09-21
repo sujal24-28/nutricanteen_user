@@ -37,9 +37,9 @@ export async function POST(req: Request) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       const filename = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-      const filepath = path.join(process.cwd(), 'public', 'uploads', 'menu', filename);
+      const filepath = path.join(process.cwd(), '..', 'node-backend', 'uploads', filename);
       await writeFile(filepath, buffer);
-      data.image_url = `/uploads/menu/${filename}`;
+      data.image_url = `/uploads/${filename}`;
     }
 
     await connectDB();

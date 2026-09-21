@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCanteen } from '../../context/CanteenContext';
 import { Plus, Minus, Flame, Sparkles } from 'lucide-react';
+import { getServerUrl } from '../../services/api';
 
 export const MenuCard = ({ item }) => {
   const { cart, addToCart, updateQuantity } = useCanteen();
@@ -8,12 +9,14 @@ export const MenuCard = ({ item }) => {
   const cartItem = cart.find((x) => x.id === item.id);
   const quantity = cartItem ? cartItem.quantity : 0;
 
+  const imageUrl = item.image_url ? getServerUrl(item.image_url) : item.image;
+
   return (
     <div className="bg-white dark:bg-leaf-950/70 rounded-2xl p-3 border border-leaf-100 dark:border-leaf-800/60 shadow-xs hover:shadow-sm transition-all flex gap-3 relative overflow-hidden group">
       {/* Product Image */}
       <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-leaf-50 dark:bg-leaf-900/40 flex-shrink-0 relative">
         <img
-          src={item.image || 'https://ui-avatars.com/api/?name=Food&background=f3f4f6&color=9ca3af&size=200'}
+          src={imageUrl || 'https://ui-avatars.com/api/?name=Food&background=f3f4f6&color=9ca3af&size=200'}
           alt={item.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 text-xs font-bold text-gray-900 flex items-center justify-center p-2 text-center"
           loading="lazy"

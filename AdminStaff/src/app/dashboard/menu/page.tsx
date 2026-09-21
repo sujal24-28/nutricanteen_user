@@ -122,10 +122,10 @@ export default function MenuPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {menu.map(item => (
               <tr key={item.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="h-10 w-10 object-cover rounded" />
-                  ) : (
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {item.image_url ? (
+                      <img src={`http://localhost:5000${item.image_url}`} alt={item.name} className="h-10 w-10 object-cover rounded" />
+                    ) : (
                     <div className="h-10 w-10 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">N/A</div>
                   )}
                 </td>
