@@ -19,7 +19,7 @@ const MAX_OTP_ATTEMPTS = 5;
 /**
  * Register a new student.
  */
-const registerStudent = async ({ name, studentClass, roll, section, phone }, file) => {
+const registerStudent = async ({ name, studentClass, roll, section, phone, school_id }) => {
   // Check uniqueness of composite identity
   const existing = await Student.findOne({
     where: { name, class: studentClass, roll, section },
@@ -38,15 +38,14 @@ const registerStudent = async ({ name, studentClass, roll, section, phone }, fil
     throw err;
   }
 
-  const avatar = file ? `/uploads/${file.filename}` : null;
-
   const student = await Student.create({
     name,
     class:   studentClass,
     roll,
     section,
     phone,
-    avatar,
+    school_id,
+    avatar: null,
     wallet_balance: 0.00,
   });
 

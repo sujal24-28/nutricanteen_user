@@ -6,14 +6,14 @@ const app = require('./src/app');
 const { connectDB, sequelize } = require('./src/config/database');
 const logger = require('./src/utils/logger.util');
 
-const PORT = Number(process.env.PORT) || 5000;
+const PORT = Number(process.env.PORT);
 let server;
 let shuttingDown = false;
 
 async function start() {
   try {
     await connectDB();
-    server = app.listen(PORT, () => {
+    server = app.listen(PORT,"0.0.0.0", () => {
       logger.info(`NutriCanteen server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
     });
   } catch (err) {

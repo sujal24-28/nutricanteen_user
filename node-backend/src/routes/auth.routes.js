@@ -26,9 +26,9 @@ const { upload } = require('../middlewares/upload.middleware');
 
 router.post(
   '/student/register',
-  upload.single('avatar'),
   [
     body('name').trim().notEmpty().withMessage('Name is required'),
+    body('school_id').notEmpty().withMessage('School selection is required').isInt().withMessage('Invalid school'),
     body('class').trim().notEmpty().withMessage('Class is required'),
     body('roll').trim().notEmpty().withMessage('Roll number is required'),
     body('section').trim().notEmpty().withMessage('Section is required'),

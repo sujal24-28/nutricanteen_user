@@ -217,22 +217,9 @@ export const checkBackendHealth = async () => {
 
 export const apiRegister = async (payload) => {
   try {
-    let body;
-    if (payload.avatar) {
-      body = new FormData();
-      body.append('name', payload.name);
-      body.append('class', payload.class);
-      body.append('roll', payload.roll);
-      body.append('section', payload.section);
-      body.append('phone', payload.phone);
-      body.append('avatar', payload.avatar);
-    } else {
-      body = JSON.stringify(payload);
-    }
-
     const res = await safeFetch('/auth/student/register', { 
       method: 'POST', 
-      body 
+      body: JSON.stringify(payload)
     }, false);
     const data = await safeJson(res);
     return { ok: res.ok, data };
@@ -386,25 +373,9 @@ export const apiStoreOrder = async (orderPayload) => {
 
 export const apiCompleteProfile = async (profileData) => {
   try {
-    let body;
-    let isFormData = false;
-
-    if (profileData.avatar) {
-      body = new FormData();
-      body.append('name', profileData.name);
-      body.append('class_name', profileData.class_name);
-      body.append('section', profileData.section);
-      body.append('roll_no', profileData.roll_no);
-      if (profileData.city_id) body.append('city_id', profileData.city_id);
-      body.append('avatar', profileData.avatar);
-      isFormData = true;
-    } else {
-      body = JSON.stringify(profileData);
-    }
-
     const res = await safeFetch('/student/profile', {
       method: 'PUT',
-      body: body
+      body: JSON.stringify(profileData)
     }, true);
     
     const data = await safeJson(res);

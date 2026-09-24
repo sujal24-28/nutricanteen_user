@@ -23,22 +23,27 @@ export const PhoneOtpStep = () => {
 
   // Sign Up Form State
   const [name, setName] = useState('');
-  const [selectedSchoolId, setSelectedSchoolId] = useState(SCHOOLS_LIST[0]?.id);
+  const [schoolsList, setSchoolsList] = useState([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [selectedClass, setSelectedClass] = useState('Class 10');
   const [selectedSection, setSelectedSection] = useState('A');
   const [rollNo, setRollNo] = useState('');
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(null);
 
-  const selectedSchool = SCHOOLS_LIST.find((s) => s.id === selectedSchoolId) || SCHOOLS_LIST[0];
-
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+  React.useEffect(() => {
+    if (!isLoginMode) {
+      fetch('http://localhost:5000/api/v1/schools')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data.length > 0) {
+            setSchoolsList(data.data);
+            setSelectedSchoolId(data.data[0].id);
+          }
+        })
+        .catch(err => console.error('Error fetching schools:', err));
     }
-  };
+  }, [isLoginMode]);
+
+  const selectedSchool = schoolsList.find((s) => s.id.toString() === selectedSchoolId.toString()) || { name: 'Loading...' };
 
   const handlePhoneSubmit = async (e) => {
     e.preventDefault();
@@ -57,11 +62,11 @@ export const PhoneOtpStep = () => {
       
       const payload = {
         name: name.trim(),
+        school_id: selectedSchool.id,
         class: selectedClass,
         roll: rollNo.trim(),
         section: selectedSection,
-        phone: phoneNumber,
-        avatar: avatarFile
+        phone: phoneNumber
       };
 
       const regResult = await registerUser(payload);
@@ -150,28 +155,6 @@ export const PhoneOtpStep = () => {
             {/* Registration Fields (Only visible in Sign Up mode) */}
             {!isLoginMode && (
               <div className="space-y-4 pt-1 border-t border-leaf-100">
-                {/* Profile Photo */}
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-600 mb-1.5 uppercase tracking-wider">
-                    Profile Photo (Optional)
-                  </label>
-                  <div className="flex items-center gap-3">
-                    {avatarPreview ? (
-                      <img src={avatarPreview} alt="Preview" className="w-10 h-10 rounded-xl object-cover border border-leaf-200" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-leaf-50 border border-leaf-200 flex items-center justify-center text-leaf-400 text-xs">
-                        📷
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarChange}
-                      className="flex-1 bg-leaf-50/50 border border-leaf-200 rounded-xl px-3 py-2 text-gray-900 font-semibold text-xs focus:outline-none focus:border-leaf-500 focus:ring-1 focus:ring-leaf-500"
-                    />
-                  </div>
-                </div>
-
                 {/* Full Name */}
                 <div>
                   <label className="block text-[11px] font-bold text-gray-600 mb-1.5 uppercase tracking-wider">
@@ -196,10 +179,15 @@ export const PhoneOtpStep = () => {
                       value={selectedSchoolId}
                       onChange={(e) => setSelectedSchoolId(e.target.value)}
                       className="w-full bg-leaf-50/50 border border-leaf-200 rounded-xl px-4 py-2.5 pr-10 text-gray-900 font-semibold text-xs focus:outline-none focus:border-leaf-500 appearance-none cursor-pointer"
+                      disabled={schoolsList.length === 0}
                     >
-                      {SCHOOLS_LIST.map((sch) => (
-                        <option key={sch.id} value={sch.id}>{sch.name} ({sch.city})</option>
-                      ))}
+                      {schoolsList.length > 0 ? (
+                        schoolsList.map((sch) => (
+                          <option key={sch.id} value={sch.id}>{sch.name}</option>
+                        ))
+                      ) : (
+                        <option value="">Loading schools...</option>
+                      )}
                     </select>
                     <School className="w-4 h-4 text-leaf-600 absolute right-3.5 top-3 pointer-events-none" />
                   </div>

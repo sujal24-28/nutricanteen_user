@@ -14,6 +14,10 @@ const Student = sequelize.define('Student', {
     allowNull: false,
     comment:   'Full name of the student',
   },
+  school_id: {
+    type:      DataTypes.INTEGER.UNSIGNED,
+    allowNull: true,
+  },
   class: {
     type:      DataTypes.STRING(20),
     allowNull: false,
@@ -34,11 +38,6 @@ const Student = sequelize.define('Student', {
     allowNull: false,
     unique:    true,
     comment:   'Mobile number for OTP login',
-  },
-  avatar: {
-    type:      DataTypes.STRING(255),
-    allowNull: true,
-    comment:   'Path to student avatar image',
   },
   wallet_balance: {
     type:         DataTypes.DECIMAL(10, 2),

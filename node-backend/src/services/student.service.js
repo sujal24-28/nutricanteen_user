@@ -20,7 +20,7 @@ const getProfile = async (studentId) => {
 /**
  * Update student profile (name, class, section, roll, phone).
  */
-const updateProfile = async (studentId, data, file) => {
+const updateProfile = async (studentId, data) => {
   const student = await Student.findByPk(studentId);
   if (!student) {
     const err = new Error('Student not found');
@@ -44,12 +44,6 @@ const updateProfile = async (studentId, data, file) => {
   if (className || cls || class_name) student.class = className || cls || class_name;
   if (section) student.section = section;
   if (rollNo || roll || roll_no) student.roll = rollNo || roll || roll_no;
-  
-  if (data.remove_avatar) {
-    student.avatar = null;
-  } else if (file) {
-    student.avatar = `/uploads/${file.filename}`;
-  }
 
   await student.save();
   return student;

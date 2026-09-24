@@ -7,8 +7,8 @@ const { successResponse, errorResponse } = require('../utils/response.util');
 
 const register = async (req, res, next) => {
   try {
-    const { name, class: studentClass, roll, section, phone } = req.body;
-    const student = await authService.registerStudent({ name, studentClass, roll, section, phone }, req.file);
+    const { name, class: studentClass, roll, section, phone, school_id } = req.body;
+    const student = await authService.registerStudent({ name, studentClass, roll, section, phone, school_id });
     return successResponse(res, student, 'Student registered successfully', 201);
   } catch (err) { next(err); }
 };

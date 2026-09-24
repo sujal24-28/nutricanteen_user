@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCanteen } from '../../context/CanteenContext';
 import { SCHOOLS_LIST, CLASSES_LIST, SECTIONS_LIST } from '../../data/schools';
 import { School, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -7,36 +7,37 @@ export const StudentDetailsStep = () => {
   const { completeStudentProfile, setAuthStep } = useCanteen();
 
   const [name, setName] = useState('');
-  const [selectedSchoolId, setSelectedSchoolId] = useState(SCHOOLS_LIST[0].id);
+  const [schoolsList, setSchoolsList] = useState([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [selectedClass, setSelectedClass] = useState('Class 10');
   const [selectedSection, setSelectedSection] = useState('A');
   const [rollNo, setRollNo] = useState('');
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedSchool = SCHOOLS_LIST.find((s) => s.id === selectedSchoolId) || SCHOOLS_LIST[0];
+  useEffect(() => {
+    fetch('http://localhost:5000/api/v1/schools')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data.length > 0) {
+          setSchoolsList(data.data);
+          setSelectedSchoolId(data.data[0].id);
+        }
+      })
+      .catch(err => console.error('Error fetching schools:', err));
+  }, []);
 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
-    }
-  };
+  const selectedSchool = schoolsList.find((s) => s.id.toString() === selectedSchoolId.toString()) || { name: 'Loading...' };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (name.trim() && rollNo.trim() && !isSubmitting) {
+    if (name.trim() && rollNo.trim() && !isSubmitting && selectedSchool.id) {
       setIsSubmitting(true);
       await completeStudentProfile({
         name: name.trim(),
-        schoolId: selectedSchool.id,
-        schoolName: selectedSchool.name,
+        school_id: selectedSchool.id,
         className: selectedClass,
         section: selectedSection,
-        rollNo: rollNo.trim(),
-        avatar: avatarFile
+        rollNo: rollNo.trim()
       });
       setIsSubmitting(false);
     }
@@ -70,17 +71,6 @@ export const StudentDetailsStep = () => {
         <div className="p-4 rounded-2xl bg-leaf-700 text-white border border-leaf-600 shadow-sm relative overflow-hidden">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              {avatarPreview ? (
-                <img 
-                  src={avatarPreview} 
-                  alt="Avatar preview" 
-                  className="w-11 h-11 rounded-xl object-cover shadow-xs shrink-0 border border-leaf-500" 
-                />
-              ) : (
-                <div className="w-11 h-11 rounded-xl bg-gold-200 text-gold-950 flex items-center justify-center font-bold text-base shadow-xs shrink-0">
-                  {name ? name.charAt(0).toUpperCase() : 'S'}
-                </div>
-              )}
               <div className="min-w-0">
                 <h3 className="font-bold text-sm text-white truncate">{name || 'Student Name'}</h3>
                 <p className="text-[11px] text-leaf-100 truncate">{selectedSchool.name}</p>
@@ -107,19 +97,6 @@ export const StudentDetailsStep = () => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-white p-5 rounded-3xl border border-leaf-100 shadow-sm space-y-4">
           
-          {/* Avatar Upload */}
-          <div>
-            <label className="block text-[11px] font-bold text-gray-600 mb-1.5 uppercase tracking-wider">
-              Profile Photo
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarChange}
-              className="w-full bg-leaf-50/50 border border-leaf-200 rounded-xl px-4 py-2.5 text-gray-900 font-semibold text-xs focus:outline-none focus:border-leaf-500 focus:ring-1 focus:ring-leaf-500"
-            />
-          </div>
-
           {/* Student Name */}
           <div>
             <label className="block text-[11px] font-bold text-gray-600 mb-1.5 uppercase tracking-wider">
@@ -145,12 +122,17 @@ export const StudentDetailsStep = () => {
                 value={selectedSchoolId}
                 onChange={(e) => setSelectedSchoolId(e.target.value)}
                 className="w-full bg-leaf-50/50 border border-leaf-200 rounded-xl px-4 py-2.5 pr-10 text-gray-900 font-semibold text-xs focus:outline-none focus:border-leaf-500 focus:ring-1 focus:ring-leaf-500 appearance-none cursor-pointer"
+                disabled={schoolsList.length === 0}
               >
-                {SCHOOLS_LIST.map((sch) => (
-                  <option key={sch.id} value={sch.id}>
-                    {sch.name} ({sch.city})
-                  </option>
-                ))}
+                {schoolsList.length > 0 ? (
+                  schoolsList.map((sch) => (
+                    <option key={sch.id} value={sch.id}>
+                      {sch.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Loading schools...</option>
+                )}
               </select>
               <School className="w-4 h-4 text-leaf-600 absolute right-3.5 top-3 pointer-events-none" />
             </div>

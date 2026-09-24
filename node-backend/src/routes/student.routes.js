@@ -15,7 +15,6 @@ router.get('/profile', ctrl.getProfile);
 
 router.put(
   '/profile',
-  upload.single('avatar'),
   [
     body('phone')
       .optional()

@@ -12,7 +12,7 @@ const getProfile = async (req, res, next) => {
 
 const updateProfile = async (req, res, next) => {
   try {
-    const student = await studentService.updateProfile(req.user.id, req.body, req.file);
+    const student = await studentService.updateProfile(req.user.id, req.body);
     return successResponse(res, student, 'Profile updated');
   } catch (err) { next(err); }
 };

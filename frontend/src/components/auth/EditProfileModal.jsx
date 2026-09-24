@@ -7,36 +7,15 @@ export const EditProfileModal = ({ isOpen, onClose }) => {
   const { student, showToast, syncBackendData } = useCanteen();
   
   const [name, setName] = useState('');
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState('');
-  const [removeAvatar, setRemoveAvatar] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (student && isOpen) {
       setName(student.name || '');
-      setAvatarPreview(student.avatar || '');
-      setAvatarFile(null);
-      setRemoveAvatar(false);
     }
   }, [student, isOpen]);
 
   if (!isOpen || !student) return null;
-
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
-      setRemoveAvatar(false);
-    }
-  };
-
-  const handleRemoveAvatar = () => {
-    setAvatarFile(null);
-    setAvatarPreview('');
-    setRemoveAvatar(true);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,9 +27,7 @@ export const EditProfileModal = ({ isOpen, onClose }) => {
         name: name.trim(),
         class_name: student.className,
         section: student.section,
-        roll_no: student.rollNo,
-        avatar: avatarFile,
-        remove_avatar: removeAvatar
+        roll_no: student.rollNo
       });
 
       if (res.ok) {
@@ -86,39 +63,8 @@ export const EditProfileModal = ({ isOpen, onClose }) => {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           
           <div className="flex flex-col items-center gap-3">
-            <div className="relative">
-              {avatarPreview ? (
-                <img 
-                  src={avatarPreview} 
-                  alt="Avatar" 
-                  className="w-20 h-20 rounded-full object-cover border-2 border-leaf-500 shadow-sm"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-gold-200 text-gold-950 flex items-center justify-center font-bold text-2xl shadow-sm">
-                  {name ? name.charAt(0).toUpperCase() : 'S'}
-                </div>
-              )}
-            </div>
-            
-            <div className="w-full flex flex-col items-center">
-              <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider text-center">
-                Profile Photo
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarChange}
-                className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-leaf-50 file:text-leaf-700 hover:file:bg-leaf-100"
-              />
-              {avatarPreview && (
-                <button
-                  type="button"
-                  onClick={handleRemoveAvatar}
-                  className="mt-2 text-xs text-rose-500 font-semibold hover:text-rose-600 cursor-pointer"
-                >
-                  Remove Photo
-                </button>
-              )}
+            <div className="w-20 h-20 rounded-full bg-gold-200 text-gold-950 flex items-center justify-center font-bold text-2xl shadow-sm">
+              {name ? name.charAt(0).toUpperCase() : 'S'}
             </div>
           </div>
 

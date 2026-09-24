@@ -742,8 +742,7 @@ export const CanteenProvider = ({ children }) => {
         city_id: profileData.schoolId || 1,
         class_name: profileData.className,
         section: profileData.section,
-        roll_no: profileData.rollNo,
-        avatar: profileData.avatar
+        roll_no: profileData.rollNo
       });
 
       const uniqueId = `STU-${profileData.className.replace('Class ', '')}${profileData.section}-${profileData.rollNo}`;

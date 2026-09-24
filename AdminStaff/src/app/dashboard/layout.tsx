@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, LogOut, LayoutDashboard, Utensils, Users, UserCog, FileText, Settings } from 'lucide-react';
+import { Menu, X, LogOut, LayoutDashboard, Utensils, Users, UserCog, FileText, Settings, Building2 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -18,6 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Menu', href: '/dashboard/menu', icon: <Utensils className="w-5 h-5 mr-3" /> },
     { name: 'Students & Wallets', href: '/dashboard/students', icon: <Users className="w-5 h-5 mr-3" /> },
     { name: 'Staff', href: '/dashboard/staff', icon: <UserCog className="w-5 h-5 mr-3" /> },
+    { name: 'Schools', href: '/dashboard/schools', icon: <Building2 className="w-5 h-5 mr-3" /> },
     { name: 'Reports', href: '/dashboard/reports', icon: <FileText className="w-5 h-5 mr-3" /> },
     { name: 'Settings', href: '/dashboard/settings', icon: <Settings className="w-5 h-5 mr-3" /> },
   ];
