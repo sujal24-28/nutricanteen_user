@@ -14,13 +14,23 @@ const getCandidateHosts = () => {
 export const getApiBase = () => {
   if (typeof window !== 'undefined') {
     const customHost = localStorage.getItem(HOST_KEY);
-    if (customHost) return customHost;
+    if (customHost) {
+      // If the env-configured URL changed (e.g. IP was reassigned by router),
+      // the stale cached host must be cleared so the new env value is used.
+      const configuredHost = isNativeApp() ? NATIVE_API_BASE : PUBLIC_TUNNEL_HOST;
+      const extractIp = (url) => { try { return new URL(url).hostname; } catch { return url; } };
+      if (extractIp(customHost) !== extractIp(configuredHost)) {
+        localStorage.removeItem(HOST_KEY);
+        return configuredHost;
+      }
+      return customHost;
+    }
 
     if (isNativeApp()) {
       return NATIVE_API_BASE;
     }
 
-    return PUBLIC_TUNNEL_HOST
+    return PUBLIC_TUNNEL_HOST;
   }
 
   return PUBLIC_TUNNEL_HOST;
