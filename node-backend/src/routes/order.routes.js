@@ -14,6 +14,9 @@ router.post(
   [
     body('pickupTime').optional().isISO8601().withMessage('pickupTime must be a valid ISO date'),
     body('note').optional().trim().isLength({ max: 300 }),
+    body('items').optional().isArray({ min: 1, max: 50 }).withMessage('items must be a non-empty array'),
+    body('items.*.menu_item_id').optional().isInt({ min: 1 }).withMessage('Invalid menu item ID'),
+    body('items.*.quantity').optional().isInt({ min: 1, max: 20 }).withMessage('Invalid quantity'),
   ],
   validate,
   ctrl.placeOrder
