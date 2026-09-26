@@ -516,13 +516,20 @@ export const CanteenProvider = ({ children }) => {
         };
 
         const res = await apiStoreOrder(orderPayload);
-        if (res.ok && res.data?.order_id) {
-          orderId = res.data.order_id;
-          // Refresh wallet and orders from backend
-          await syncBackendData();
+        if (!res.ok) {
+          showToast('Order Failed', res.error || res.data?.message || 'Unable to place order.', 'error');
+          return false;
         }
+
+        if (res.data?.order_id || res.data?.data?.id || res.data?.id) {
+          orderId = res.data.order_id || res.data.data?.id || res.data.id;
+        }
+
+        // Backend transaction already deducts the wallet. Refresh authoritative state.
+        await syncBackendData();
       } catch (err) {
-        console.warn('Backend order store error:', err);
+        showToast('Order Failed', err.message || 'Unable to place order.', 'error');
+        return false;
       }
     }
 
