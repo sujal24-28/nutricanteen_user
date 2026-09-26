@@ -351,35 +351,23 @@ export const apiGetAllProducts = async () => {
 
 export const apiStoreOrder = async (orderPayload) => {
   try {
-    let items = [];
-    try {
-      const products = JSON.parse(orderPayload.product_details || '[]');
-      items = products.map(p => ({ menu_item_id: p.backendId || p.id, quantity: p.quantity }));
-    } catch(e) {}
-    
-    // 1. Clear cart
-    await safeFetch('/cart', { method: 'DELETE' }, true);
-    
-    // 2. Add each item to backend cart
-    for (const item of items) {
-      if (item.menu_item_id) {
-        await safeFetch('/cart', {
-          method: 'POST',
-          body: JSON.stringify({ item_id: item.menu_item_id, quantity: item.quantity })
-        }, true);
-      }
-    }
-    
-    // 3. Place order
-    const nodePayload = {
-      note: 'Pre-order via Canteen App',
-      pickupTime: new Date(Date.now() + 3600000).toISOString() // 1 hour from now as fallback
-    };
+    const products = JSON.parse(orderPayload.product_details || '[]');
+    const items = products
+      .map((p) => ({
+        menu_item_id: Number(p.backendId || p.id),
+        quantity: Number(p.quantity)
+      }))
+      .filter((item) => Number.isInteger(item.menu_item_id) && item.menu_item_id > 0);
 
     const res = await safeFetch('/orders', {
       method: 'POST',
-      body: JSON.stringify(nodePayload)
+      body: JSON.stringify({
+        items,
+        note: 'Pre-order via Canteen App',
+        pickupTime: new Date(Date.now() + 3600000).toISOString()
+      })
     }, true);
+
     const data = await safeJson(res);
     return { ok: res.ok, data };
   } catch (err) {
