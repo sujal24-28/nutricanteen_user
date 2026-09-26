@@ -13,8 +13,11 @@ const getCandidateHosts = () => {
     const saved = localStorage.getItem(HOST_KEY);
     if (saved) hosts.push(saved);
   }
-  
+
   hosts.push(isNativeApp() ? NATIVE_API_BASE : PUBLIC_TUNNEL_HOST);
+
+  // Local fallbacks are retained for emulator/local development, but each
+  // request now has a short timeout so a dead host does not stall the UI.
   hosts.push('http://10.0.2.2:5000/api/v1');
   hosts.push('http://127.0.0.1:5000/api/v1');
   hosts.push('http://localhost:5000/api/v1');
@@ -151,7 +154,7 @@ export const safeFetch = async (endpoint, options = {}, isAuth = false) => {
     const url = `${base}${cleanEndpoint}`;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const res = await fetch(url, {
         ...options,
@@ -208,7 +211,20 @@ const safeJson = async (res) => {
 
 export const checkBackendHealth = async () => {
   try {
-    const res = await safeFetch('/menu', { method: 'GET' }, false);
+    const base = getApiBase().replace(/\\/api\\/v1\\/?$/, '');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(base ? `${base}/health` : '/health', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Bypass-Tunnel-Reminder': 'true'
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
     return res.ok;
   } catch (err) {
     return false;
