@@ -8,12 +8,26 @@ const { parsePagination, paginationMeta } = require('../utils/pagination.util');
  * Place an order from the student's current cart.
  * Atomically: deduct wallet + create order + clear cart.
  */
-const placeOrder = async (studentId, { pickupTime, note } = {}) => {
-  // Load cart
-  const cartItems = await Cart.findAll({
-    where:   { student_id: studentId },
-    include: [{ model: MenuItem, as: 'menuItem' }],
-  });
+const placeOrder = async (studentId, { pickupTime, note, items = null } = {}) => {
+  let cartItems = [];
+
+  if (items && Array.isArray(items) && items.length > 0) {
+    // Client sent items directly to bypass sequential POST /cart overhead
+    for (const item of items) {
+      const menuItem = await MenuItem.findByPk(item.item_id);
+      cartItems.push({
+        item_id: item.item_id,
+        quantity: item.quantity,
+        menuItem: menuItem
+      });
+    }
+  } else {
+    // Load cart from DB if client didn't send items
+    cartItems = await Cart.findAll({
+      where:   { student_id: studentId },
+      include: [{ model: MenuItem, as: 'menuItem' }],
+    });
+  }
 
   if (!cartItems.length) {
     const err = new Error('Your cart is empty');

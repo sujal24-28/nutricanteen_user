@@ -8,18 +8,7 @@ const isNativeApp = () => {
 };
 
 const getCandidateHosts = () => {
-  const hosts = [];
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem(HOST_KEY);
-    if (saved) hosts.push(saved);
-  }
-  
-  hosts.push(isNativeApp() ? NATIVE_API_BASE : PUBLIC_TUNNEL_HOST);
-  hosts.push('http://10.0.2.2:5000/api/v1');
-  hosts.push('http://127.0.0.1:5000/api/v1');
-  hosts.push('http://localhost:5000/api/v1');
-
-  return Array.from(new Set(hosts));
+  return [getApiBase()];
 };
 
 export const getApiBase = () => {
@@ -151,7 +140,7 @@ export const safeFetch = async (endpoint, options = {}, isAuth = false) => {
     const url = `${base}${cleanEndpoint}`;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const res = await fetch(url, {
         ...options,
@@ -208,7 +197,7 @@ const safeJson = async (res) => {
 
 export const checkBackendHealth = async () => {
   try {
-    const res = await safeFetch('/menu', { method: 'GET' }, false);
+    const res = await safeFetch('/health', { method: 'GET' }, false);
     return res.ok;
   } catch (err) {
     return false;
@@ -338,24 +327,11 @@ export const apiStoreOrder = async (orderPayload) => {
     let items = [];
     try {
       const products = JSON.parse(orderPayload.product_details || '[]');
-      items = products.map(p => ({ menu_item_id: p.backendId || p.id, quantity: p.quantity }));
+      items = products.map(p => ({ item_id: p.backendId || p.id, quantity: p.quantity })).filter(i => i.item_id);
     } catch(e) {}
     
-    // 1. Clear cart
-    await safeFetch('/cart', { method: 'DELETE' }, true);
-    
-    // 2. Add each item to backend cart
-    for (const item of items) {
-      if (item.menu_item_id) {
-        await safeFetch('/cart', {
-          method: 'POST',
-          body: JSON.stringify({ item_id: item.menu_item_id, quantity: item.quantity })
-        }, true);
-      }
-    }
-    
-    // 3. Place order
     const nodePayload = {
+      items,
       note: 'Pre-order via Canteen App',
       pickupTime: new Date(Date.now() + 3600000).toISOString() // 1 hour from now as fallback
     };

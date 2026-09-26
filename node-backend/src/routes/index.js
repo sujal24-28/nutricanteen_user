@@ -11,4 +11,6 @@ router.use('/orders',  require('./order.routes'));
 router.use('/admin',   require('./admin.routes'));
 router.use('/schools', require('./schools.routes'));
 
+router.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
 module.exports = router;

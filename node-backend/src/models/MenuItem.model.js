@@ -48,6 +48,11 @@ const MenuItem = sequelize.define('MenuItem', {
 }, {
   tableName: 'menu_items',
   paranoid:  true,
+  indexes: [
+    {
+      fields: ['is_available', 'category', 'name']
+    }
+  ]
 });
 
 module.exports = MenuItem;

@@ -183,114 +183,124 @@ export const CanteenProvider = ({ children }) => {
         };
       });
     }
-    // Return empty array instead of CANTEEN_MENU_ITEMS to clear hardcoded items when backend is connected
-    return [];
+    // Return CANTEEN_MENU_ITEMS fallback when backend is unavailable or empty
+    return CANTEEN_MENU_ITEMS;
   }, [backendProducts]);
 
   // Synchronize state with Laravel Backend
   const syncBackendData = async () => {
     try {
-      // 0. Sync Profile Data
+      let profilePromise = Promise.resolve(null);
+      let walletPromise = Promise.resolve(null);
+      let ordersPromise = Promise.resolve(null);
+
       if (getStoredToken()) {
-        const profileRes = await apiGetProfile();
-        if (profileRes?.ok && profileRes?.data) {
-          const profile = profileRes.data.student || profileRes.data.profile || profileRes.data.user || profileRes.data;
-          
-          setStudent((prev) => {
-            const updated = {
-              id: profile.id || prev?.id,
-              uniqueId: profile.unique_id || `STU-${(profile.class || profile.class_name || '10').replace('Class ', '')}${profile.section || 'A'}-${profile.roll || profile.roll_no || '1'}`,
-              phone: profile.phone || prev?.phone || tempPhone,
-              name: profile.name || prev?.name || 'Student',
-              schoolId: profile.city_id || prev?.schoolId || 1,
-              schoolName: profile.school_name || prev?.schoolName || 'Campus Canteen',
-              className: profile.class || profile.class_name || prev?.className || 'Class 10',
-              section: profile.section || prev?.section || 'A',
-              rollNo: profile.roll || profile.roll_no || prev?.rollNo || '1',
-              avatar: (profile.avatar ? `${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${profile.avatar}` : null) || profile.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || prev?.name || 'User')}&background=f3f4f6&color=9ca3af&size=200`,
-              walletBalance: Number(profile.wallet_balance || profile.wallet || prev?.walletBalance || 0),
-              parentContact: `+91 ${profile.phone || prev?.phone || tempPhone}`
-            };
-            return updated;
-          });
-        }
+        profilePromise = apiGetProfile();
+        walletPromise = apiGetWallet();
+        ordersPromise = apiGetOrderList();
+      }
 
-        // 1. Wallet & Ledger
-        const walletRes = await apiGetWallet();
-        const wData = walletRes?.data?.data || walletRes?.data;
-        if (walletRes?.ok && wData?.wallet_balance !== undefined) {
-          setWalletBalance(Number(wData.wallet_balance));
-          
-          const history = wData.transactions || wData.wallet_history || [];
-          if (Array.isArray(history) && history.length > 0) {
-            const mappedHistory = history.map((th) => ({
-              id: `TXN-${th.id}`,
-              type: th.type,
-              amount: Number(th.amount),
-              title: th.description || (th.type === 'credit' ? 'Wallet Top-up' : 'Canteen Order'),
-              description: th.type === 'credit' ? 'Added via Online Payment' : 'Deducted for Pre-Order',
-              date: th.created_at ? new Date(th.created_at).toLocaleDateString() : 'Today',
-              status: 'Success'
-            }));
-            setTransactions(mappedHistory);
-          } else {
-            setTransactions([]);
-          }
-        }
+      const [profileRes, walletRes, ordersRes, prodRes, catRes] = await Promise.all([
+        profilePromise,
+        walletPromise,
+        ordersPromise,
+        apiGetAllProducts().catch(() => null),
+        apiGetCategories().catch(() => null)
+      ]);
 
-        // 2. Orders List
-        const ordersRes = await apiGetOrderList();
-        const ordersArray = ordersRes?.data?.data?.orders || ordersRes?.data?.orders || [];
-        if (ordersRes?.ok && Array.isArray(ordersArray)) {
-          const mappedOrders = ordersArray.map((o, idx) => {
-            let items = [];
-            try {
-              if (o.items && Array.isArray(o.items)) {
-                items = o.items.map(i => ({
-                  name: i.menuItem?.name || 'Meal Item',
-                  quantity: i.quantity,
-                  price: Number(i.unit_price || 0)
-                }));
-              } else {
-                items = typeof o.product_details === 'string' ? JSON.parse(o.product_details) : o.product_details;
-              }
-            } catch (e) {
-              items = [{ name: 'Meal Item', quantity: o.product_count || 1, price: Number(o.total_amount) }];
-            }
-            return {
-              id: o.id || o.order_id,
-              tokenNumber: `TK-${(o.id || o.order_id || idx + 10).toString().slice(-2)}`,
-              items: Array.isArray(items) ? items : [items],
-              totalAmount: Number(o.grand_amount || o.total_amount || 0),
-              preOrderDate: (new Date(o.pickup_time || o.created_at || Date.now())).toLocaleDateString(),
-              breakSlot: o.note || 'Lunch Break (1:15 PM)',
-              status: (o.status === 'pending' || o.order_status === 'Pending') ? 'Scheduled' : (o.status || o.order_status),
-              pickupNote: o.student 
-                ? `Student: ${o.student.name} (${o.student.class}-${o.student.section}, Roll #${o.student.roll})` 
-                : `Student: ${student?.name || 'Student'}`,
-              createdAt: o.created_at || o.order_time || 'Recent'
-            };
-          });
-          if (mappedOrders.length > 0) {
-            setOrders(mappedOrders);
-          } else {
-            setOrders([]);
-          }
+      // 0. Sync Profile Data
+      if (profileRes?.ok && profileRes?.data) {
+        const profile = profileRes.data.student || profileRes.data.profile || profileRes.data.user || profileRes.data;
+        
+        setStudent((prev) => {
+          const updated = {
+            id: profile.id || prev?.id,
+            uniqueId: profile.unique_id || `STU-${(profile.class || profile.class_name || '10').replace('Class ', '')}${profile.section || 'A'}-${profile.roll || profile.roll_no || '1'}`,
+            phone: profile.phone || prev?.phone || tempPhone,
+            name: profile.name || prev?.name || 'Student',
+            schoolId: profile.city_id || prev?.schoolId || 1,
+            schoolName: profile.school_name || prev?.schoolName || 'Campus Canteen',
+            className: profile.class || profile.class_name || prev?.className || 'Class 10',
+            section: profile.section || prev?.section || 'A',
+            rollNo: profile.roll || profile.roll_no || prev?.rollNo || '1',
+            avatar: (profile.avatar ? `${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${profile.avatar}` : null) || profile.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || prev?.name || 'User')}&background=f3f4f6&color=9ca3af&size=200`,
+            walletBalance: Number(profile.wallet_balance || profile.wallet || prev?.walletBalance || 0),
+            parentContact: `+91 ${profile.phone || prev?.phone || tempPhone}`
+          };
+          return updated;
+        });
+      }
+
+      // 1. Wallet & Ledger
+      const wData = walletRes?.data?.data || walletRes?.data;
+      if (walletRes?.ok && wData?.wallet_balance !== undefined) {
+        setWalletBalance(Number(wData.wallet_balance));
+        
+        const history = wData.transactions || wData.wallet_history || [];
+        if (Array.isArray(history) && history.length > 0) {
+          const mappedHistory = history.map((th) => ({
+            id: `TXN-${th.id}`,
+            type: th.type,
+            amount: Number(th.amount),
+            title: th.description || (th.type === 'credit' ? 'Wallet Top-up' : 'Canteen Order'),
+            description: th.type === 'credit' ? 'Added via Online Payment' : 'Deducted for Pre-Order',
+            date: th.created_at ? new Date(th.created_at).toLocaleDateString() : 'Today',
+            status: 'Success'
+          }));
+          setTransactions(mappedHistory);
+        } else {
+          setTransactions([]);
         }
       }
 
-      try {
-        const prodRes = await apiGetAllProducts();
-        if (prodRes?.ok && Array.isArray(prodRes?.data)) {
-          setBackendProducts(prodRes.data);
-          setIsBackendConnected(true);
+      // 2. Orders List
+      const ordersArray = ordersRes?.data?.data?.orders || ordersRes?.data?.orders || [];
+      if (ordersRes?.ok && Array.isArray(ordersArray)) {
+        const mappedOrders = ordersArray.map((o, idx) => {
+          let items = [];
+          try {
+            if (o.items && Array.isArray(o.items)) {
+              items = o.items.map(i => ({
+                name: i.menuItem?.name || 'Meal Item',
+                quantity: i.quantity,
+                price: Number(i.unit_price || 0)
+              }));
+            } else {
+              items = typeof o.product_details === 'string' ? JSON.parse(o.product_details) : o.product_details;
+            }
+          } catch (e) {
+            items = [{ name: 'Meal Item', quantity: o.product_count || 1, price: Number(o.total_amount) }];
+          }
+          return {
+            id: o.id || o.order_id,
+            tokenNumber: `TK-${(o.id || o.order_id || idx + 10).toString().slice(-2)}`,
+            items: Array.isArray(items) ? items : [items],
+            totalAmount: Number(o.grand_amount || o.total_amount || 0),
+            preOrderDate: (new Date(o.pickup_time || o.created_at || Date.now())).toLocaleDateString(),
+            breakSlot: o.note || 'Lunch Break (1:15 PM)',
+            status: (o.status === 'pending' || o.order_status === 'Pending') ? 'Scheduled' : (o.status || o.order_status),
+            pickupNote: o.student 
+              ? `Student: ${o.student.name} (${o.student.class}-${o.student.section}, Roll #${o.student.roll})` 
+              : `Student: Student`,
+            createdAt: o.created_at || o.order_time || 'Recent'
+          };
+        });
+        if (mappedOrders.length > 0) {
+          setOrders(mappedOrders);
+        } else {
+          setOrders([]);
         }
-      } catch (err) {
+      }
+
+      // 3. Products
+      if (prodRes?.ok && Array.isArray(prodRes?.data)) {
+        setBackendProducts(prodRes.data);
+        setIsBackendConnected(true);
+      } else if (prodRes !== null) {
         setIsBackendConnected(false);
       }
 
-      // 5. Categories
-      const catRes = await apiGetCategories();
+      // 4. Categories
       if (catRes?.ok && Array.isArray(catRes?.data?.category)) {
         setBackendCategories(catRes.data.category);
       }
