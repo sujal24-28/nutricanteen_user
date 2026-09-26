@@ -1,7 +1,9 @@
 const TOKEN_KEY = 'nutricanteen_token';
 const HOST_KEY = 'nutricanteen_host_v2';
 export const PUBLIC_TUNNEL_HOST = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
-const NATIVE_API_BASE = (import.meta.env.VITE_NATIVE_API_BASE_URL || PUBLIC_TUNNEL_HOST).replace(/\/$/, '');
+const NATIVE_API_BASE = (import.meta.env.VITE_NATIVE_API_BASE_URL || '').trim().replace(/\/$/, '');
+
+const isAbsoluteHttpUrl = (value) => /^https?:\/\//i.test(value || '');
 
 const isNativeApp = () => {
   return typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
@@ -14,7 +16,13 @@ const getCandidateHosts = () => {
     if (saved) hosts.push(saved);
   }
 
-  hosts.push(isNativeApp() ? NATIVE_API_BASE : PUBLIC_TUNNEL_HOST);
+  if (isNativeApp()) {
+    // A Capacitor app cannot use Vite's relative /api proxy. Native builds
+    // must use a reachable absolute backend URL (LAN IP or HTTPS tunnel).
+    if (isAbsoluteHttpUrl(NATIVE_API_BASE)) hosts.push(NATIVE_API_BASE);
+  } else {
+    hosts.push(PUBLIC_TUNNEL_HOST);
+  }
 
   // Local fallbacks are retained for emulator/local development, but each
   // request now has a short timeout so a dead host does not stall the UI.
@@ -30,7 +38,7 @@ export const getApiBase = () => {
     const customHost = localStorage.getItem(HOST_KEY);
     if (customHost) return customHost;
 
-    if (isNativeApp()) {
+    if (isNativeApp() && isAbsoluteHttpUrl(NATIVE_API_BASE)) {
       return NATIVE_API_BASE;
     }
 
@@ -77,7 +85,7 @@ export const testHostConnection = async (hostUrl) => {
   if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
     clean = `http://${clean}`;
   }
-  const url = `${clean}/menu`;
+  const url = `${clean.replace(/\/api\/v1\/?$/, '')}/health`;
 
   try {
     const controller = new AbortController();
@@ -194,7 +202,10 @@ export const safeFetch = async (endpoint, options = {}, isAuth = false) => {
   }
 
   const primaryBase = getApiBase();
-  throw new Error(`Cannot connect to backend server at ${primaryBase}. Check server settings.`);
+  if (isNativeApp() && !isAbsoluteHttpUrl(NATIVE_API_BASE)) {
+    throw new Error('Native app backend URL is not configured. Set VITE_NATIVE_API_BASE_URL to your PC LAN IP, for example http://192.168.0.122:5000/api/v1, then rebuild the Android app.');
+  }
+  throw new Error(`Cannot connect to backend server at ${primaryBase}. Check that the phone and backend PC are on the same Wi-Fi and that port 5000 is allowed through Windows Firewall.`);
 };
 
 const safeJson = async (res) => {
