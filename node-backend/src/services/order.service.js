@@ -8,12 +8,41 @@ const { parsePagination, paginationMeta } = require('../utils/pagination.util');
  * Place an order from the student's current cart.
  * Atomically: deduct wallet + create order + clear cart.
  */
-const placeOrder = async (studentId, { pickupTime, note } = {}) => {
-  // Load cart
-  const cartItems = await Cart.findAll({
-    where:   { student_id: studentId },
-    include: [{ model: MenuItem, as: 'menuItem' }],
-  });
+const placeOrder = async (studentId, { pickupTime, note, items } = {}) => {
+  // Prefer an explicit order payload so checkout does not require
+  // DELETE cart + N POST /cart calls before placing the order.
+  let cartItems;
+
+  if (Array.isArray(items) && items.length > 0) {
+    const normalized = items
+      .map((item) => ({
+        item_id: Number(item.menu_item_id),
+        quantity: Number(item.quantity),
+      }))
+      .filter((item) => Number.isInteger(item.item_id) && item.item_id > 0 && Number.isInteger(item.quantity) && item.quantity > 0);
+
+    if (normalized.length !== items.length) {
+      const err = new Error('Invalid order items');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const menuItems = await MenuItem.findAll({
+      where: { id: normalized.map((item) => item.item_id) },
+    });
+
+    const byId = new Map(menuItems.map((item) => [item.id, item]));
+    cartItems = normalized.map((item) => ({
+      item_id: item.item_id,
+      quantity: item.quantity,
+      menuItem: byId.get(item.item_id),
+    }));
+  } else {
+    cartItems = await Cart.findAll({
+      where: { student_id: studentId },
+      include: [{ model: MenuItem, as: 'menuItem' }],
+    });
+  }
 
   if (!cartItems.length) {
     const err = new Error('Your cart is empty');
@@ -21,7 +50,6 @@ const placeOrder = async (studentId, { pickupTime, note } = {}) => {
     throw err;
   }
 
-  // Validate all items still available
   for (const c of cartItems) {
     if (!c.menuItem || !c.menuItem.is_available) {
       const err = new Error(`"${c.menuItem?.name || 'An item'}" is no longer available`);
@@ -38,8 +66,13 @@ const placeOrder = async (studentId, { pickupTime, note } = {}) => {
   let createdOrder;
 
   await sequelize.transaction(async (t) => {
-    // Lock student row and check balance
     const student = await Student.findByPk(studentId, { lock: true, transaction: t });
+
+    if (!student) {
+      const err = new Error('Student not found');
+      err.statusCode = 404;
+      throw err;
+    }
 
     if (parseFloat(student.wallet_balance) < total) {
       const err = new Error(
@@ -52,39 +85,39 @@ const placeOrder = async (studentId, { pickupTime, note } = {}) => {
     const newBalance = parseFloat(student.wallet_balance) - total;
     await student.update({ wallet_balance: newBalance }, { transaction: t });
 
-    // Create order
     createdOrder = await Order.create({
-      student_id:   studentId,
+      student_id: studentId,
       total_amount: total,
-      status:       'pending',
-      pickup_time:  pickupTime || null,
-      note:         note       || null,
+      status: 'pending',
+      pickup_time: pickupTime || null,
+      note: note || null,
     }, { transaction: t });
 
-    // Create order items (snapshot price)
-    const orderItemsData = cartItems.map((c) => ({
-      order_id:   createdOrder.id,
-      item_id:    c.item_id,
-      quantity:   c.quantity,
-      unit_price: parseFloat(c.menuItem.price),
-    }));
-    await OrderItem.bulkCreate(orderItemsData, { transaction: t });
+    await OrderItem.bulkCreate(
+      cartItems.map((c) => ({
+        order_id: createdOrder.id,
+        item_id: c.item_id,
+        quantity: c.quantity,
+        unit_price: parseFloat(c.menuItem.price),
+      })),
+      { transaction: t }
+    );
 
-    // Record wallet debit
     await WalletTransaction.create({
-      student_id:    studentId,
-      type:          'debit',
-      amount:        total,
+      student_id: studentId,
+      type: 'debit',
+      amount: total,
       balance_after: newBalance,
-      ref_id:        String(createdOrder.id),
-      description:   `Order #${createdOrder.id}`,
+      ref_id: String(createdOrder.id),
+      description: `Order #${createdOrder.id}`,
     }, { transaction: t });
 
-    // Clear cart
-    await Cart.destroy({ where: { student_id: studentId }, transaction: t });
+    // Clear the legacy server cart only when this order came from it.
+    if (!Array.isArray(items) || items.length === 0) {
+      await Cart.destroy({ where: { student_id: studentId }, transaction: t });
+    }
   });
 
-  // Return full order with items
   return getOrder(createdOrder.id, studentId);
 };
 

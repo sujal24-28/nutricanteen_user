@@ -40,6 +40,7 @@ export const CanteenProvider = ({ children }) => {
   // Backend connection status
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [backendProducts, setBackendProducts] = useState([]);
+  const [backendMenuLoaded, setBackendMenuLoaded] = useState(false);
   const [backendCities, setBackendCities] = useState([]);
   const [backendCategories, setBackendCategories] = useState([]);
 
@@ -158,41 +159,48 @@ export const CanteenProvider = ({ children }) => {
   }, [transactions]);
 
   const liveMenuItems = React.useMemo(() => {
-    if (backendProducts && backendProducts.length > 0) {
-      return backendProducts.map((bp) => {
-        return {
-          id: bp.id.toString(),
-          backendId: bp.id,
-          name: bp.name,
-          category: (bp.category || 'lunch').toLowerCase(),
-          price: Number(bp.price) || 0,
-          originalPrice: (Number(bp.price) || 0) + 10,
-          mrp: (Number(bp.price) || 0) + 10,
-          description: bp.description || 'Nutritious canteen meal prepared fresh daily.',
-          image: bp.image_url 
-            ? (bp.image_url.startsWith('http') ? bp.image_url : getApiBase().replace('/api/v1', '') + bp.image_url) 
-            : null,
-          calories: '260 kcal',
-          prepTime: 'Instant / Fresh',
-          isVeg: true,
-          isChefSpecial: true,
-          dietaryTag: 'Campus Fresh',
-          availableSlots: ['recess', 'lunch'],
-          rating: 4.9,
-          isLiveBackend: true
-        };
-      });
-    }
-    // Return empty array instead of CANTEEN_MENU_ITEMS to clear hardcoded items when backend is connected
-    return [];
-  }, [backendProducts]);
+    // Keep the local menu visible while the live API is loading or unavailable.
+    // Once the backend successfully responds, prefer its menu data.
+    if (!backendMenuLoaded) return CANTEEN_MENU_ITEMS;
 
-  // Synchronize state with Laravel Backend
+    if (backendProducts.length > 0) {
+      return backendProducts.map((bp) => ({
+        id: bp.id.toString(),
+        backendId: bp.id,
+        name: bp.name,
+        category: (bp.category || 'lunch').toLowerCase(),
+        price: Number(bp.price) || 0,
+        originalPrice: (Number(bp.price) || 0) + 10,
+        mrp: (Number(bp.price) || 0) + 10,
+        description: bp.description || 'Nutritious canteen meal prepared fresh daily.',
+        image: bp.image_url
+          ? (bp.image_url.startsWith('http') ? bp.image_url : getApiBase().replace('/api/v1', '') + bp.image_url)
+          : null,
+        calories: '260 kcal',
+        prepTime: 'Instant / Fresh',
+        isVeg: true,
+        isChefSpecial: true,
+        dietaryTag: 'Campus Fresh',
+        availableSlots: ['recess', 'lunch'],
+        rating: 4.9,
+        isLiveBackend: true
+      }));
+    }
+
+    // A successful empty response should not blank the customer's menu.
+    return CANTEEN_MENU_ITEMS;
+  }, [backendProducts, backendMenuLoaded]);
+
+  // Synchronize state with the Node/Express backend
   const syncBackendData = async () => {
     try {
-      // 0. Sync Profile Data
+      // 0. Sync authenticated data in parallel to reduce startup latency.
       if (getStoredToken()) {
-        const profileRes = await apiGetProfile();
+        const [profileRes, walletRes, ordersRes] = await Promise.all([
+          apiGetProfile(),
+          apiGetWallet(),
+          apiGetOrderList()
+        ]);
         if (profileRes?.ok && profileRes?.data) {
           const profile = profileRes.data.student || profileRes.data.profile || profileRes.data.user || profileRes.data;
           
@@ -216,7 +224,6 @@ export const CanteenProvider = ({ children }) => {
         }
 
         // 1. Wallet & Ledger
-        const walletRes = await apiGetWallet();
         const wData = walletRes?.data?.data || walletRes?.data;
         if (walletRes?.ok && wData?.wallet_balance !== undefined) {
           setWalletBalance(Number(wData.wallet_balance));
@@ -239,7 +246,6 @@ export const CanteenProvider = ({ children }) => {
         }
 
         // 2. Orders List
-        const ordersRes = await apiGetOrderList();
         const ordersArray = ordersRes?.data?.data?.orders || ordersRes?.data?.orders || [];
         if (ordersRes?.ok && Array.isArray(ordersArray)) {
           const mappedOrders = ordersArray.map((o, idx) => {
@@ -280,17 +286,21 @@ export const CanteenProvider = ({ children }) => {
       }
 
       try {
-        const prodRes = await apiGetAllProducts();
+        const [prodRes, catRes] = await Promise.all([
+          apiGetAllProducts(),
+          apiGetCategories()
+        ]);
+
         if (prodRes?.ok && Array.isArray(prodRes?.data)) {
           setBackendProducts(prodRes.data);
+          setBackendMenuLoaded(true);
           setIsBackendConnected(true);
+        } else {
+          setBackendMenuLoaded(false);
+          setIsBackendConnected(false);
         }
-      } catch (err) {
-        setIsBackendConnected(false);
-      }
 
-      // 5. Categories
-      const catRes = await apiGetCategories();
+        // Categories are loaded in parallel with the menu.
       if (catRes?.ok && Array.isArray(catRes?.data?.category)) {
         setBackendCategories(catRes.data.category);
       }
@@ -299,7 +309,7 @@ export const CanteenProvider = ({ children }) => {
     }
   };
 
-  // Connect & Sync with Laravel Backend on mount
+  // Connect & Sync with Node/Express backend on mount
   useEffect(() => {
     const initBackend = async () => {
       try {
@@ -506,13 +516,20 @@ export const CanteenProvider = ({ children }) => {
         };
 
         const res = await apiStoreOrder(orderPayload);
-        if (res.ok && res.data?.order_id) {
-          orderId = res.data.order_id;
-          // Refresh wallet and orders from backend
-          await syncBackendData();
+        if (!res.ok) {
+          showToast('Order Failed', res.error || res.data?.message || 'Unable to place order.', 'error');
+          return false;
         }
+
+        if (res.data?.order_id || res.data?.data?.id || res.data?.id) {
+          orderId = res.data.order_id || res.data.data?.id || res.data.id;
+        }
+
+        // Backend transaction already deducts the wallet. Refresh authoritative state.
+        await syncBackendData();
       } catch (err) {
-        console.warn('Backend order store error:', err);
+        showToast('Order Failed', err.message || 'Unable to place order.', 'error');
+        return false;
       }
     }
 
