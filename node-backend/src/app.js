@@ -16,16 +16,24 @@ const app = express();
 /* ─── Security & Parsing ─── */
 app.use(helmet());
 
-const allowedOrigins = (process.env.CORS_ORIGINS || '')
+const configuredOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
+
+// Capacitor native builds use localhost as their WebView origin.
+const allowedOrigins = new Set([
+  'http://localhost',
+  'https://localhost',
+  'capacitor://localhost',
+  ...configuredOrigins,
+]);
 
 app.use(
   cors({
     origin: (origin, cb) => {
       // Allow all origins in development to fix CORS errors easily, or allow listed origins.
-      if (!origin || process.env.NODE_ENV !== 'production' || allowedOrigins.includes(origin)) return cb(null, true);
+      if (!origin || process.env.NODE_ENV !== 'production' || allowedOrigins.has(origin)) return cb(null, true);
       return cb(new Error('CORS origin not allowed'));
     },
     credentials: true,
