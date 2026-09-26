@@ -15,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navLinks = [
     { name: 'Orders', href: '/dashboard/orders', icon: <LayoutDashboard className="w-5 h-5 mr-3" /> },
+    { name: '📋 Order Sheet', href: '/dashboard/orders/sheet', icon: <FileText className="w-5 h-5 mr-3" /> },
     { name: 'Menu', href: '/dashboard/menu', icon: <Utensils className="w-5 h-5 mr-3" /> },
     { name: 'Students & Wallets', href: '/dashboard/students', icon: <Users className="w-5 h-5 mr-3" /> },
     { name: 'Staff', href: '/dashboard/staff', icon: <UserCog className="w-5 h-5 mr-3" /> },

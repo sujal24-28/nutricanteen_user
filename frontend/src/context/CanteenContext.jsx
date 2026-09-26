@@ -731,6 +731,13 @@ export const CanteenProvider = ({ children }) => {
           setStudent(stu);
           setWalletBalance(Number(profile.wallet || 0));
           setAuthStep('authenticated');
+          // ── Clear previous user's data so orders/cart never bleed between sessions ──
+          setCart([]);
+          setOrders([]);
+          setTransactions([]);
+          localStorage.removeItem(STORAGE_KEY_ORDERS);
+          localStorage.removeItem(STORAGE_KEY_WALLET);
+          localStorage.removeItem(STORAGE_KEY_TRANSACTIONS);
           showToast('Welcome Back! 👋', `Logged in as ${stu.name}`);
           await syncBackendData();
         }
@@ -796,9 +803,15 @@ export const CanteenProvider = ({ children }) => {
       setAdminUser(null);
       setAuthStep('phone');
       setCart([]);
+      setOrders([]);
+      setTransactions([]);
+      setWalletBalance(0);
       clearStoredToken();
       localStorage.removeItem(STORAGE_KEY_STUDENT);
       localStorage.removeItem(STORAGE_KEY_ADMIN);
+      localStorage.removeItem(STORAGE_KEY_ORDERS);
+      localStorage.removeItem(STORAGE_KEY_WALLET);
+      localStorage.removeItem(STORAGE_KEY_TRANSACTIONS);
       showToast('Signed Out', 'You have been signed out.');
     } catch (e) {
       console.error(e);
