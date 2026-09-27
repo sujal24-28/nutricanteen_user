@@ -14,7 +14,7 @@ async function start() {
   try {
     await connectDB();
     server = app.listen(PORT,"0.0.0.0", () => {
-      logger.info(`NutriCanteen server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+      logger.info(`Mapstreak server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
     });
   } catch (err) {
     logger.error('Failed to start server', { message: err.message, stack: err.stack });

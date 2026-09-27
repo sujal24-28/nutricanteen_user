@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCanteen } from '../../context/CanteenContext';
-import { SCHOOLS_LIST, CLASSES_LIST, SECTIONS_LIST } from '../../data/schools';
+import { CLASSES_LIST, SECTIONS_LIST } from '../../data/schools';
+import { apiGetSchools } from '../../services/api';
 import { ArrowRight, ShieldCheck, School, ArrowLeft, RefreshCw, UserPlus } from 'lucide-react';
 
 export const PhoneOtpStep = () => {
@@ -10,7 +11,8 @@ export const PhoneOtpStep = () => {
     tempPhone,
     sendOtp,
     verifyOtp,
-    registerUser
+    registerUser,
+    showToast
   } = useCanteen();
 
   // Mode and Base State
@@ -31,15 +33,12 @@ export const PhoneOtpStep = () => {
 
   React.useEffect(() => {
     if (!isLoginMode) {
-      fetch('http://localhost:5000/api/v1/schools')
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.data.length > 0) {
-            setSchoolsList(data.data);
-            setSelectedSchoolId(data.data[0].id);
-          }
-        })
-        .catch(err => console.error('Error fetching schools:', err));
+      apiGetSchools().then(res => {
+        if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+          setSchoolsList(res.data);
+          setSelectedSchoolId(res.data[0].id);
+        }
+      });
     }
   }, [isLoginMode]);
 
@@ -53,38 +52,36 @@ export const PhoneOtpStep = () => {
     
     setIsSubmitting(true);
 
-    // If in Sign Up mode, register the user on the backend first
-    if (!isLoginMode) {
-      if (!name.trim() || !rollNo.trim()) {
-        setIsSubmitting(false);
-        return;
+    try {
+      // If in Sign Up mode, register the user on the backend first
+      if (!isLoginMode) {
+        if (!name.trim() || !rollNo.trim()) return;
+        
+        const payload = {
+          name: name.trim(),
+          school_id: selectedSchool.id,
+          class: selectedClass,
+          roll: rollNo.trim(),
+          section: selectedSection,
+          phone: phoneNumber
+        };
+
+        const regResult = await registerUser(payload);
+        if (!regResult.success) {
+          return; // Halt if registration fails (e.g. phone already exists)
+        }
       }
+
+      // Send an OTP to verify
+      const res = await sendOtp(phoneNumber);
       
-      const payload = {
-        name: name.trim(),
-        school_id: selectedSchool.id,
-        class: selectedClass,
-        roll: rollNo.trim(),
-        section: selectedSection,
-        phone: phoneNumber
-      };
-
-      const regResult = await registerUser(payload);
-      if (!regResult.success) {
-        setIsSubmitting(false);
-        return; // Halt if registration fails (e.g. phone already exists)
+      if (isLoginMode && res && !res.ok && res.error?.includes('No student registered')) {
+        setIsLoginMode(false);
+        showToast('Sign Up Required', 'Please create an account first.', 'error');
       }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Send an OTP to verify
-    const res = await sendOtp(phoneNumber);
-    
-    if (isLoginMode && res && !res.ok && res.error && res.error.includes('No student registered')) {
-      setIsLoginMode(false);
-      showToast('Sign Up Required', 'Please create an account first.', 'error');
-    }
-
-    setIsSubmitting(false);
   };
 
   const handleOtpSubmit = async (e) => {
@@ -113,7 +110,7 @@ export const PhoneOtpStep = () => {
         <div className="w-14 h-14 rounded-2xl bg-leaf-600 text-white mx-auto flex items-center justify-center shadow-md mb-3">
           <School className="w-7 h-7" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900 tracking-tight">NutriCanteen</h1>
+        <h1 className="text-xl font-bold text-gray-900 tracking-tight">Mapstreak</h1>
         <p className="text-xs text-gray-500 mt-0.5">School Canteen Pre-Order & Digital Wallet</p>
       </div>
 

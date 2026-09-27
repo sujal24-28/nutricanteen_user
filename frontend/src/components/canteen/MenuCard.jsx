@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCanteen } from '../../context/CanteenContext';
-import { Plus, Minus, Flame, Sparkles } from 'lucide-react';
+import { Plus, Minus, Flame } from 'lucide-react';
 import { getServerUrl } from '../../services/api';
 
 export const MenuCard = ({ item }) => {
@@ -21,12 +21,6 @@ export const MenuCard = ({ item }) => {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 text-xs font-bold text-gray-900 flex items-center justify-center p-2 text-center"
           loading="lazy"
         />
-        {item.isChefSpecial && (
-          <span className="absolute top-1.5 left-1.5 bg-gold-100 dark:bg-gold-950/80 text-gold-900 dark:text-gold-200 border border-gold-300/80 font-bold text-[9px] px-1.5 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-0.5 shadow-xs">
-            <Sparkles className="w-2.5 h-2.5 text-gold-700" />
-            Special
-          </span>
-        )}
       </div>
 
       {/* Details */}

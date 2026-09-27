@@ -34,7 +34,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-brand-offwhite">
       <div className="w-full max-w-md p-8 bg-brand-white rounded-xl shadow-lg border border-brand-brown-light/20">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-brand-brown-dark">NutriCanteen</h1>
+          <h1 className="text-3xl font-bold text-brand-brown-dark">Mapstreak</h1>
           <p className="text-brand-brown-light mt-2">Staff & Admin Portal</p>
         </div>
         

@@ -47,7 +47,7 @@ app.use(
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 /* ─── Health Check ─── */
-app.get('/', (_req, res) => { res.send('<h1>🍕 Welcome to NutriCanteen API Backend!</h1><p>The server is running successfully.</p><p>Check <code>/health</code> for status, or use <code>/api/v1/*</code> endpoints.</p>'); });
+app.get('/', (_req, res) => { res.send('<h1>🍕 Welcome to Mapstreak API Backend!</h1><p>The server is running successfully.</p><p>Check <code>/health</code> for status, or use <code>/api/v1/*</code> endpoints.</p>'); });
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

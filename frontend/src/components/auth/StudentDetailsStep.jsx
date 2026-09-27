@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCanteen } from '../../context/CanteenContext';
-import { SCHOOLS_LIST, CLASSES_LIST, SECTIONS_LIST } from '../../data/schools';
+import { CLASSES_LIST, SECTIONS_LIST } from '../../data/schools';
+import { apiGetSchools } from '../../services/api';
 import { School, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export const StudentDetailsStep = () => {
@@ -15,15 +16,12 @@ export const StudentDetailsStep = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/v1/schools')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data.length > 0) {
-          setSchoolsList(data.data);
-          setSelectedSchoolId(data.data[0].id);
-        }
-      })
-      .catch(err => console.error('Error fetching schools:', err));
+    apiGetSchools().then(res => {
+      if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+        setSchoolsList(res.data);
+        setSelectedSchoolId(res.data[0].id);
+      }
+    });
   }, []);
 
   const selectedSchool = schoolsList.find((s) => s.id.toString() === selectedSchoolId.toString()) || { name: 'Loading...' };
@@ -32,14 +30,18 @@ export const StudentDetailsStep = () => {
     e.preventDefault();
     if (name.trim() && rollNo.trim() && !isSubmitting && selectedSchool.id) {
       setIsSubmitting(true);
-      await completeStudentProfile({
-        name: name.trim(),
-        school_id: selectedSchool.id,
-        className: selectedClass,
-        section: selectedSection,
-        rollNo: rollNo.trim()
-      });
-      setIsSubmitting(false);
+      try {
+        await completeStudentProfile({
+          name: name.trim(),
+          schoolId: selectedSchool.id,
+          schoolName: selectedSchool.name,
+          className: selectedClass,
+          section: selectedSection,
+          rollNo: rollNo.trim()
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 

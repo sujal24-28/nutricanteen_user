@@ -22,6 +22,7 @@ import {
   apiAdminListStudents,
   apiAdminDebitWallet,
   apiAdminCreditWallet,
+  apiGetBanner,
   setStoredToken,
   clearStoredToken,
   getStoredToken,
@@ -127,6 +128,7 @@ export const CanteenProvider = ({ children }) => {
   const [isStaffTerminalOpen, setIsStaffTerminalOpen] = useState(false);
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [banner, setBanner] = useState(null);
 
   // Sync to local storage
   useEffect(() => {
@@ -200,12 +202,13 @@ export const CanteenProvider = ({ children }) => {
         ordersPromise = apiGetOrderList();
       }
 
-      const [profileRes, walletRes, ordersRes, prodRes, catRes] = await Promise.all([
+      const [profileRes, walletRes, ordersRes, prodRes, catRes, bannerRes] = await Promise.all([
         profilePromise,
         walletPromise,
         ordersPromise,
         apiGetAllProducts().catch(() => null),
-        apiGetCategories().catch(() => null)
+        apiGetCategories().catch(() => null),
+        apiGetBanner().catch(() => null)
       ]);
 
       // 0. Sync Profile Data
@@ -304,6 +307,11 @@ export const CanteenProvider = ({ children }) => {
       if (catRes?.ok && Array.isArray(catRes?.data?.category)) {
         setBackendCategories(catRes.data.category);
       }
+
+      // 5. Banner
+      if (bannerRes?.ok && bannerRes.data) {
+        setBanner(bannerRes.data);
+      }
     } catch (err) {
       console.warn('Backend sync warning:', err);
     }
@@ -338,6 +346,17 @@ export const CanteenProvider = ({ children }) => {
     window.addEventListener('auth:expired', handleAuthExpired);
     return () => window.removeEventListener('auth:expired', handleAuthExpired);
   }, []);
+
+  const refreshBanner = async () => {
+    try {
+      const res = await apiGetBanner();
+      if (res.ok && res.data) {
+        setBanner(res.data);
+      }
+    } catch (e) {
+      console.error('Failed to refresh banner:', e);
+    }
+  };
 
   // Explicit user-triggered live backend test & synchronization
   const makeLiveRequest = async () => {
@@ -419,7 +438,7 @@ export const CanteenProvider = ({ children }) => {
           key: key_id,
           amount: orderAmount * 100,
           currency: currency,
-          name: 'NutriCanteen',
+          name: 'Mapstreak',
           description: 'Wallet Recharge',
           order_id: order_id,
           handler: async (response) => {
@@ -756,7 +775,7 @@ export const CanteenProvider = ({ children }) => {
     try {
       const res = await apiCompleteProfile({
         name: profileData.name,
-        city_id: profileData.schoolId || 1,
+        city_id: profileData.schoolId || profileData.school_id || 1,
         class_name: profileData.className,
         section: profileData.section,
         roll_no: profileData.rollNo
@@ -767,7 +786,7 @@ export const CanteenProvider = ({ children }) => {
         uniqueId,
         phone: tempPhone,
         name: profileData.name,
-        schoolId: profileData.schoolId || 1,
+        schoolId: profileData.schoolId || profileData.school_id || 1,
         schoolName: profileData.schoolName || 'Campus Canteen',
         className: profileData.className,
         section: profileData.section,
@@ -777,19 +796,25 @@ export const CanteenProvider = ({ children }) => {
         parentContact: `+91 ${tempPhone}`
       };
 
-      setStudent(newStudent);
-      setWalletBalance(newStudent.walletBalance);
-      setAuthStep('authenticated');
+      if (res.ok) {
+        setStudent(newStudent);
+        setWalletBalance(newStudent.walletBalance);
+        setAuthStep('authenticated');
 
-      confetti({
-        particleCount: 60,
-        spread: 60,
-        colors: ['#4e8d5a', '#cca95f']
-      });
+        confetti({
+          particleCount: 60,
+          spread: 60,
+          colors: ['#4e8d5a', '#cca95f']
+        });
 
-      showToast('Welcome to NutriCanteen! 🎒', `Account created for ${newStudent.name}. Profile linked to school canteen.`);
-      await syncBackendData();
-      return true;
+        showToast('Welcome to Mapstreak! 🎒', `Account created for ${newStudent.name}. Profile linked to school canteen.`);
+        await syncBackendData();
+        return true;
+      } else {
+        const errMsg = res.data?.message || res.error || 'Failed to save profile. Please try again.';
+        showToast('Profile Setup Failed', errMsg, 'error');
+        return false;
+      }
     } catch (e) {
       console.error('completeStudentProfile error:', e);
       showToast('Profile Error', 'Failed to save student profile on server.', 'error');
@@ -894,7 +919,10 @@ export const CanteenProvider = ({ children }) => {
         staffDeductStudentWallet,
         staffMarkOrderCollected,
 
-        // UI
+        // UI & Banners
+        banner,
+        setBanner,
+        refreshBanner,
         activeTab,
         setActiveTab,
         isServerSettingsOpen,

@@ -1,6 +1,6 @@
 {
   "appId": "com.school.nutricanteen",
-  "appName": "NutriCanteen",
+  "appName": "Mapstreak",
   "webDir": "dist",
   "server": {
     "cleartext": true,

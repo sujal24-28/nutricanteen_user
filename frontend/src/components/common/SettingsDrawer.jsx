@@ -157,8 +157,8 @@ export const SettingsDrawer = ({ isOpen, onClose }) => {
               icon={<Mail className="w-4 h-4" />}
               iconBg="bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300"
               label="Email Support"
-              sublabel="support@nutricanteen.in"
-              onClick={() => window.open('mailto:support@nutricanteen.in')}
+              sublabel="support@mapstreak.in"
+              onClick={() => window.open('mailto:support@mapstreak.in')}
               external
             />
             <SettingsRow
@@ -195,14 +195,14 @@ export const SettingsDrawer = ({ isOpen, onClose }) => {
               icon={<Star className="w-4 h-4" />}
               iconBg="bg-gold-100 dark:bg-gold-950/60 text-gold-700 dark:text-gold-300"
               label="Rate the App"
-              sublabel="Love NutriCanteen? Give us 5 stars!"
+              sublabel="Love Mapstreak? Give us 5 stars!"
               onClick={() => window.open('#', '_blank')}
               external
             />
             <SettingsRow
               icon={<Info className="w-4 h-4" />}
               iconBg="bg-leaf-100 dark:bg-leaf-950/60 text-leaf-700 dark:text-leaf-300"
-              label="About NutriCanteen"
+              label="About Mapstreak"
               value="v1.0.0"
             />
           </Section>

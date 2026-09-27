@@ -4,7 +4,7 @@ import { ShieldCheck } from 'lucide-react';
 
 export default function LoginView() {
   const { login, isLoading } = useAuth();
-  const [email, setEmail] = useState('admin@nutricanteen.com');
+  const [email, setEmail] = useState('admin@mapstreak.com');
   const [password, setPassword] = useState('');
 
   const handleSubmit = async (e) => {
@@ -20,7 +20,7 @@ export default function LoginView() {
             <ShieldCheck className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Portal</h1>
-          <p className="text-sm text-gray-500 mt-1">NutriCanteen Management</p>
+          <p className="text-sm text-gray-500 mt-1">Mapstreak Management</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

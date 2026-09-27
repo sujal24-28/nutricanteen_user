@@ -28,7 +28,7 @@ router.post(
   '/student/register',
   [
     body('name').trim().notEmpty().withMessage('Name is required'),
-    body('school_id').notEmpty().withMessage('School selection is required').isInt().withMessage('Invalid school'),
+    body('school_id').optional({ nullable: true }).isInt().withMessage('Invalid school'),
     body('class').trim().notEmpty().withMessage('Class is required'),
     body('roll').trim().notEmpty().withMessage('Roll number is required'),
     body('section').trim().notEmpty().withMessage('Section is required'),

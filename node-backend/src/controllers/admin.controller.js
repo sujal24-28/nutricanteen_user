@@ -54,4 +54,11 @@ const createAdmin = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getDashboard, listStudents, getStudent, creditWallet, debitWallet, toggleStudentStatus, createAdmin };
+const deleteStudent = async (req, res, next) => {
+  try {
+    const result = await adminService.deleteStudent(req.params.id);
+    return successResponse(res, result, result.message);
+  } catch (err) { next(err); }
+};
+
+module.exports = { getDashboard, listStudents, getStudent, creditWallet, debitWallet, toggleStudentStatus, createAdmin, deleteStudent };

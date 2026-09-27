@@ -20,6 +20,14 @@ const MAX_OTP_ATTEMPTS = 5;
  * Register a new student.
  */
 const registerStudent = async ({ name, studentClass, roll, section, phone, school_id }) => {
+  // Check phone uniqueness first (most common case)
+  const phoneExists = await Student.findOne({ where: { phone } });
+  if (phoneExists) {
+    const err = new Error('This phone number is already registered. Please sign in instead.');
+    err.statusCode = 409;
+    throw err;
+  }
+
   // Check uniqueness of composite identity
   const existing = await Student.findOne({
     where: { name, class: studentClass, roll, section },
@@ -30,26 +38,33 @@ const registerStudent = async ({ name, studentClass, roll, section, phone, schoo
     throw err;
   }
 
-  // Check phone uniqueness
-  const phoneExists = await Student.findOne({ where: { phone } });
-  if (phoneExists) {
-    const err = new Error('This phone number is already registered');
-    err.statusCode = 409;
-    throw err;
+  try {
+    const student = await Student.create({
+      name,
+      class:   studentClass,
+      roll,
+      section,
+      phone,
+      school_id: school_id || null,
+      avatar: null,
+      wallet_balance: 0.00,
+    });
+    return sanitizeStudent(student);
+  } catch (dbErr) {
+    // Handle race-condition duplicate inserts
+    if (dbErr.name === 'SequelizeUniqueConstraintError') {
+      const field = dbErr.errors?.[0]?.path || 'record';
+      if (field === 'phone') {
+        const err = new Error('This phone number is already registered. Please sign in instead.');
+        err.statusCode = 409;
+        throw err;
+      }
+      const err = new Error('A student with these details already exists.');
+      err.statusCode = 409;
+      throw err;
+    }
+    throw dbErr;
   }
-
-  const student = await Student.create({
-    name,
-    class:   studentClass,
-    roll,
-    section,
-    phone,
-    school_id,
-    avatar: null,
-    wallet_balance: 0.00,
-  });
-
-  return sanitizeStudent(student);
 };
 
 /**

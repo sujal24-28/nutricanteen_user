@@ -1,11 +1,24 @@
 'use client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, LogOut, LayoutDashboard, Utensils, Users, UserCog, FileText, Settings, Building2 } from 'lucide-react';
+import {
+  Menu,
+  X,
+  LogOut,
+  LayoutDashboard,
+  ShoppingBag,
+  ClipboardList,
+  Utensils,
+  Users,
+  UserCog,
+  Building2,
+  Image as ImageIcon
+} from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const handleLogout = async () => {
@@ -14,14 +27,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const navLinks = [
-    { name: 'Orders', href: '/dashboard/orders', icon: <LayoutDashboard className="w-5 h-5 mr-3" /> },
-    { name: '📋 Order Sheet', href: '/dashboard/orders/sheet', icon: <FileText className="w-5 h-5 mr-3" /> },
+    { name: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="w-5 h-5 mr-3" /> },
+    { name: 'Orders', href: '/dashboard/orders', icon: <ShoppingBag className="w-5 h-5 mr-3" /> },
+    { name: 'Order Sheet', href: '/dashboard/orders/sheet', icon: <ClipboardList className="w-5 h-5 mr-3" /> },
     { name: 'Menu', href: '/dashboard/menu', icon: <Utensils className="w-5 h-5 mr-3" /> },
     { name: 'Students & Wallets', href: '/dashboard/students', icon: <Users className="w-5 h-5 mr-3" /> },
     { name: 'Staff', href: '/dashboard/staff', icon: <UserCog className="w-5 h-5 mr-3" /> },
     { name: 'Schools', href: '/dashboard/schools', icon: <Building2 className="w-5 h-5 mr-3" /> },
-    { name: 'Reports', href: '/dashboard/reports', icon: <FileText className="w-5 h-5 mr-3" /> },
-    { name: 'Settings', href: '/dashboard/settings', icon: <Settings className="w-5 h-5 mr-3" /> },
+    { name: 'App Banner', href: '/dashboard/banner', icon: <ImageIcon className="w-5 h-5 mr-3" /> },
   ];
 
   return (
@@ -29,7 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-brand-brown-dark text-brand-white z-40 sticky top-0 shadow-md">
         <div>
-          <h2 className="text-xl font-bold text-brand-gold">NutriCanteen</h2>
+          <h2 className="text-xl font-bold text-brand-gold">Mapstreak</h2>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-brand-brown rounded hover:bg-brand-brown-light transition-colors">
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -52,32 +65,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         transition-transform duration-300 ease-in-out
       `}>
         <div className="p-6 hidden md:block">
-          <h2 className="text-2xl font-bold text-brand-gold">NutriCanteen</h2>
+          <h2 className="text-2xl font-bold text-brand-gold">Mapstreak</h2>
           <p className="text-sm text-brand-brown-light">Portal</p>
         </div>
         <div className="p-6 md:hidden flex justify-between items-center border-b border-brand-brown">
           <div>
-            <h2 className="text-xl font-bold text-brand-gold">NutriCanteen</h2>
+            <h2 className="text-xl font-bold text-brand-gold">Mapstreak</h2>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 rounded hover:bg-brand-brown">
              <X className="w-6 h-6" />
           </button>
         </div>
         <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-          {navLinks.map((link) => (
-            <Link 
-              key={link.href} 
-              href={link.href} 
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center px-4 py-3 rounded hover:bg-brand-brown transition-colors"
-            >
-              {link.icon}
-              {link.name}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link 
+                key={link.href} 
+                href={link.href} 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center px-4 py-3 rounded-lg transition-colors font-medium text-sm ${
+                  isActive
+                    ? 'bg-brand-brown text-brand-gold font-bold shadow-xs'
+                    : 'text-gray-200 hover:bg-brand-brown/70 hover:text-white'
+                }`}
+              >
+                {link.icon ? link.icon : <span className="w-5 mr-3 inline-block" />}
+                {link.name}
+              </Link>
+            );
+          })}
         </nav>
         <div className="p-4 border-t border-brand-brown">
-          <button onClick={handleLogout} className="flex items-center justify-center w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded transition-colors font-semibold">
+          <button onClick={handleLogout} className="flex items-center justify-center w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold">
             <LogOut className="w-5 h-5 mr-2" />
             Logout
           </button>

@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_ACCESS_SECRET;
+const JWT_SECRET: string = process.env.JWT_ACCESS_SECRET || '';
 
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
   throw new Error(
@@ -21,7 +21,7 @@ export async function signToken(payload: AdminPayload) {
 
 export async function verifyToken(token: string): Promise<AdminPayload | null> {
   try {
-    return jwt.verify(token, JWT_SECRET) as AdminPayload;
+    return jwt.verify(token, JWT_SECRET) as unknown as AdminPayload;
   } catch (error) {
     return null;
   }

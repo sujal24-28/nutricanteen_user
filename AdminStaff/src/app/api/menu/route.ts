@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { connectDB } from '@/config/database';
-import { writeFile } from 'fs/promises';
-import path from 'path';
+import { uploadMenuImage } from '@/lib/cloudinary';
 const { MenuItem } = require('@/models');
 
 export async function GET(req: Request) {
@@ -32,14 +31,12 @@ export async function POST(req: Request) {
       is_available: formData.get('is_available') === 'true',
     };
 
+
     const file = formData.get('image') as File | null;
     if (file && file.size > 0) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const filename = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-      const filepath = path.join(process.cwd(), '..', 'node-backend', 'uploads', filename);
-      await writeFile(filepath, buffer);
-      data.image_url = `/uploads/${filename}`;
+      data.image_url = await uploadMenuImage(buffer, file.name);
     }
 
     await connectDB();

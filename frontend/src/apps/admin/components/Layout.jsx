@@ -20,7 +20,7 @@ export default function Layout() {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-bold text-gray-900 leading-tight">NutriCanteen</h1>
+            <h1 className="font-bold text-gray-900 leading-tight">Mapstreak</h1>
             <span className="text-xs text-leaf-600 font-semibold uppercase tracking-wider">Admin</span>
           </div>
         </div>

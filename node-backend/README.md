@@ -1,4 +1,4 @@
-# 🍱 NutriCanteen Backend
+# 🍱 Mapstreak Backend
 
 > **A Node.js + MySQL monolith backend for a school canteen pre-order system.**  
 > Students pre-order food from home before coming to school, pay via an in-app wallet topped up through OTP verification (MSG91).
@@ -28,7 +28,7 @@
 
 ## Overview
 
-NutriCanteen allows school students to browse the canteen menu, add items to their cart, and place orders **before arriving at school** — eliminating queues at the canteen. Payment is exclusively through an **in-app wallet**. Wallet top-ups require OTP verification via **MSG91** to prevent unauthorized credits.
+Mapstreak allows school students to browse the canteen menu, add items to their cart, and place orders **before arriving at school** — eliminating queues at the canteen. Payment is exclusively through an **in-app wallet**. Wallet top-ups require OTP verification via **MSG91** to prevent unauthorized credits.
 
 A canteen admin panel (separate frontend) allows staff to manage the menu, view incoming orders, and update order statuses in real time.
 
@@ -726,4 +726,4 @@ Log format: `[YYYY-MM-DD HH:mm:ss] LEVEL: message`
 
 ## License
 
-ISC © NutriCanteen Team
+ISC © Mapstreak Team

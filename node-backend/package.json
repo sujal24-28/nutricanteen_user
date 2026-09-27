@@ -1,7 +1,7 @@
 {
-  "name": "nutricanteen-backend",
+  "name": "mapstreak-backend",
   "version": "1.0.0",
-  "description": "NutriCanteen - School Canteen Pre-Order System Backend (Node.js + MySQL)",
+  "description": "Mapstreak - School Canteen Pre-Order System Backend (Node.js + MySQL)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -17,7 +17,7 @@
     "nodejs",
     "mysql"
   ],
-  "author": "NutriCanteen Team",
+  "author": "Mapstreak Team",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.7.2",

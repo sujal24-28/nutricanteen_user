@@ -188,6 +188,20 @@ const createAdmin = async ({ name, email, password, role }) => {
   return { id: admin.id, name: admin.name, email: admin.email, role: admin.role };
 };
 
+/**
+ * Delete a student (soft delete).
+ */
+const deleteStudent = async (studentId) => {
+  const student = await Student.findByPk(studentId);
+  if (!student) {
+    const err = new Error('Student not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  await student.destroy();
+  return { message: `Student ${student.name} deleted successfully` };
+};
+
 module.exports = {
   listStudents,
   getStudent,
@@ -196,4 +210,5 @@ module.exports = {
   toggleStudentStatus,
   getDashboard,
   createAdmin,
+  deleteStudent,
 };

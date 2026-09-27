@@ -227,6 +227,18 @@ export const apiRegister = async (payload) => {
   }
 };
 
+export const apiGetSchools = async () => {
+  try {
+    const res = await safeFetch('/schools', { method: 'GET' }, false);
+    const data = await safeJson(res);
+    // normalize: could be { success, data: [...] } or { data: [...] } or [...]
+    const list = data?.data || data?.schools || (Array.isArray(data) ? data : []);
+    return { ok: res.ok, data: list };
+  } catch (err) {
+    return { ok: false, data: [], error: err.message };
+  }
+};
+
 export const apiCheckUser = async (phone) => {
   try {
     const res = await safeFetch('/auth/check-user', {
@@ -309,6 +321,16 @@ export const apiGetCities = async () => {
 
 export const apiGetCategories = async () => {
   return { ok: true, data: [] };
+};
+
+export const apiGetBanner = async () => {
+  try {
+    const res = await safeFetch('/banner', { method: 'GET' }, false);
+    const json = await safeJson(res);
+    return { ok: res.ok, data: json.data || json };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 };
 
 export const apiGetAllProducts = async () => {

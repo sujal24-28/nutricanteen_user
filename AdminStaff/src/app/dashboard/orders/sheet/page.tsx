@@ -138,8 +138,8 @@ export default function OrderSheetPage() {
       {/* Top Controls */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <span>📋</span> Daily Order Sheet
+          <h1 className="text-2xl font-bold text-gray-900">
+            Daily Order Sheet
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
             View, filter, and print student-wise order sheets
