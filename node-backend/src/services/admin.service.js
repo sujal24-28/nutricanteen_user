@@ -6,6 +6,8 @@ const { sequelize } = require('../config/database');
 const { Student, Admin, Order, WalletTransaction } = require('../models');
 const { parsePagination, paginationMeta } = require('../utils/pagination.util');
 const { addRupees, subRupees, parseRupees } = require('../utils/money.util');
+const { serializeStudent, serializeAdmin } = require('../utils/serializer.util');
+
 
 
 /**
@@ -34,7 +36,7 @@ const listStudents = async (query) => {
     offset,
   });
 
-  return { students: rows, meta: paginationMeta(count, page, limit) };
+  return { students: rows.map(serializeStudent), meta: paginationMeta(count, page, limit) };
 };
 
 /**

@@ -15,11 +15,11 @@ const logger   = require('./logger.util');
  * @returns {Promise<void>}
  */
 const sendOtpViaMSG91 = async (phone, otp, purpose = 'login') => {
-  if (!msg91Cfg.authKey) {
+  if (process.env.NODE_ENV === 'test' || !msg91Cfg.authKey) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('OTP service is not configured');
     }
-    logger.warn(`MSG91 is not configured; using development OTP flow for ${phone}`);
+    logger.warn(`MSG91 is not configured or in test mode; using development OTP flow for ${phone}`);
     return { sms_dispatched: false, debug_otp: otp };
   }
 

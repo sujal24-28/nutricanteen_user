@@ -62,6 +62,8 @@ const Student = sequelize.define('Student', {
       fields: ['name', 'class', 'roll', 'section'],
       name:   'unique_student_identity',
     },
+    { fields: ['phone'] },
+    { fields: ['school_id'] },
   ],
 });
 

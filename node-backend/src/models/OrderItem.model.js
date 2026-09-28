@@ -32,6 +32,10 @@ const OrderItem = sequelize.define('OrderItem', {
 }, {
   tableName:  'order_items',
   timestamps: false,
+  indexes: [
+    { fields: ['order_id'] },
+    { fields: ['item_id'] },
+  ],
 });
 
 module.exports = OrderItem;

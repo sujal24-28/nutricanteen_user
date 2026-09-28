@@ -7,6 +7,8 @@ const { generateOtp, hashOtp, compareOtp }      = require('../utils/otp.util');
 const { sendOtpViaMSG91 }                        = require('../utils/msg91.util');
 const { parsePagination, paginationMeta }        = require('../utils/pagination.util');
 const { addRupees, parseRupees }                 = require('../utils/money.util');
+const { serializeWalletTxn }                     = require('../utils/serializer.util');
+
 
 
 const OTP_TTL_MINUTES  = parseInt(process.env.OTP_EXPIRES_MINUTES, 10) || 10;
@@ -38,7 +40,7 @@ const getWallet = async (studentId, query) => {
 
   return {
     wallet_balance: parseRupees(student.wallet_balance),
-    transactions:   rows,
+    transactions:   rows.map(serializeWalletTxn),
     meta:           paginationMeta(count, page, limit),
   };
 };

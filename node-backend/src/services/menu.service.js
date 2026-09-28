@@ -6,44 +6,89 @@ const { Op }   = require('sequelize');
 const { MenuItem } = require('../models');
 const { parsePagination, paginationMeta } = require('../utils/pagination.util');
 const { uploadToCloudinary } = require('../utils/cloudinary.util');
+const { getCache, setCache, invalidateCache } = require('../utils/cache.util');
+const { parseRupees } = require('../utils/money.util');
+
+const MENU_ATTRIBUTES = [
+  'id',
+  'name',
+  'description',
+  'price',
+  'mrp',
+  'category',
+  'food_type',
+  'image_url',
+  'is_available',
+  'daily_limit',
+  'created_at',
+  'updated_at',
+];
 
 /**
  * List available menu items with optional category filter and search.
+ * Cached in Redis with TTL (cache-aside pattern).
  */
-const listItems = async (query) => {
+const listItems = async (query = {}) => {
   const { page, limit, offset } = parsePagination(query);
-  const where = {};
 
-  if (query.available !== 'false') where.is_available = true; // default: only available
+  const cacheKey = `cache:menu:list:${query.available || 'true'}:${query.category || 'all'}:${query.search || 'none'}:${page}:${limit}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  const where = {};
+  if (query.available !== 'false') where.is_available = true;
   if (query.category)              where.category = query.category;
   if (query.search) {
-    where.name = { [Op.like]: `%${query.search}%` };
+    const term = String(query.search).trim().slice(0, 50);
+    where.name = { [Op.like]: `%${term}%` };
   }
 
   const { count, rows } = await MenuItem.findAndCountAll({
+    attributes: MENU_ATTRIBUTES,
     where,
     order:  [['category', 'ASC'], ['name', 'ASC']],
     limit,
     offset,
   });
 
-  return {
-    items: rows,
-    meta:  paginationMeta(count, page, limit),
+  const result = {
+    items: rows.map((r) => ({
+      ...r.toJSON(),
+      price: parseRupees(r.price),
+      mrp:   r.mrp ? parseRupees(r.mrp) : null,
+    })),
+    meta: paginationMeta(count, page, limit),
   };
+
+  await setCache(cacheKey, result, 300); // 5 min TTL
+  return result;
 };
 
 /**
  * Get single menu item.
  */
 const getItem = async (id) => {
-  const item = await MenuItem.findByPk(id);
+  const cacheKey = `cache:menu:item:${id}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  const item = await MenuItem.findByPk(id, {
+    attributes: MENU_ATTRIBUTES,
+  });
   if (!item) {
     const err = new Error('Menu item not found');
     err.statusCode = 404;
     throw err;
   }
-  return item;
+
+  const serialized = {
+    ...item.toJSON(),
+    price: parseRupees(item.price),
+    mrp:   item.mrp ? parseRupees(item.mrp) : null,
+  };
+
+  await setCache(cacheKey, serialized, 300);
+  return serialized;
 };
 
 /**
@@ -60,9 +105,9 @@ const createItem = async (data, file) => {
 
   const item = await MenuItem.create({
     name:         formattedName,
-    description:  data.description,
-    price:        parseFloat(data.price),
-    mrp:          data.mrp ? parseFloat(data.mrp) : null,
+    description:  data.description || null,
+    price:        parseRupees(data.price),
+    mrp:          data.mrp ? parseRupees(data.mrp) : null,
     category:     data.category || 'General',
     food_type:    data.food_type || 'veg',
     is_available: data.is_available !== 'false',
@@ -70,7 +115,12 @@ const createItem = async (data, file) => {
     image_url:    imageUrl,
   });
 
-  return item;
+  await invalidateCache('cache:menu:*');
+  return {
+    ...item.toJSON(),
+    price: parseRupees(item.price),
+    mrp:   item.mrp ? parseRupees(item.mrp) : null,
+  };
 };
 
 /**
@@ -102,8 +152,8 @@ const updateItem = async (id, data, file) => {
   await item.update({
     name:         formattedName,
     description:  data.description  ?? item.description,
-    price:        data.price        ? parseFloat(data.price) : item.price,
-    mrp:          data.mrp !== undefined ? (data.mrp ? parseFloat(data.mrp) : null) : item.mrp,
+    price:        data.price        ? parseRupees(data.price) : item.price,
+    mrp:          data.mrp !== undefined ? (data.mrp ? parseRupees(data.mrp) : null) : item.mrp,
     category:     data.category     ?? item.category,
     food_type:    data.food_type    ?? item.food_type,
     is_available: data.is_available !== undefined
@@ -115,7 +165,12 @@ const updateItem = async (id, data, file) => {
     image_url:    data.image_url    ?? item.image_url,
   });
 
-  return item;
+  await invalidateCache('cache:menu:*');
+  return {
+    ...item.toJSON(),
+    price: parseRupees(item.price),
+    mrp:   item.mrp ? parseRupees(item.mrp) : null,
+  };
 };
 
 /**
@@ -129,6 +184,7 @@ const deleteItem = async (id) => {
     throw err;
   }
   await item.destroy(); // paranoid soft-delete
+  await invalidateCache('cache:menu:*');
 };
 
 module.exports = { listItems, getItem, createItem, updateItem, deleteItem };

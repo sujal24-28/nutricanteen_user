@@ -32,10 +32,10 @@ router.post(
 // List orders - student sees own, admin sees all
 router.get('/', protectAny, ctrl.listOrders);
 
-// Get single order
+// Get single order (student sees own, admin sees all)
 router.get(
   '/:id',
-  protect,
+  protectAny,
   [param('id').isInt().withMessage('Invalid order ID')],
   validate,
   ctrl.getOrder

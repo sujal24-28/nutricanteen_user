@@ -87,6 +87,24 @@ const sendStudentOtp = async (phone) => {
     throw err;
   }
 
+  // Enforce 30-second cooldown on OTP requests to prevent abuse
+  const recentOtp = await OtpRecord.findOne({
+    where: {
+      phone,
+      purpose: 'login',
+      created_at: { [Op.gt]: new Date(Date.now() - 30 * 1000) },
+    },
+    order: [['created_at', 'DESC']],
+  });
+  if (recentOtp) {
+    const ts = recentOtp.created_at || recentOtp.createdAt || Date.now();
+    const elapsed = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+    const waitSec = Math.max(1, isNaN(elapsed) ? 30 : 30 - elapsed);
+    const err = new Error(`Please wait ${waitSec} second(s) before requesting another OTP.`);
+    err.statusCode = 429;
+    throw err;
+  }
+
   // Invalidate any previous unused OTPs for this phone
   await OtpRecord.update(
     { is_used: true },

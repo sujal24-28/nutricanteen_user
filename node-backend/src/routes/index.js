@@ -12,6 +12,12 @@ router.use('/admin',   require('./admin.routes'));
 router.use('/schools', require('./schools.routes'));
 router.use('/banner',  require('./banner.routes'));
 
-router.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+router.get('/health', (_req, res) =>
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime_seconds: Math.floor(process.uptime()),
+  })
+);
 
 module.exports = router;

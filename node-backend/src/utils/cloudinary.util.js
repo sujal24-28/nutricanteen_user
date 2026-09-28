@@ -32,7 +32,7 @@ const uploadToCloudinary = async (file, folder = 'nutricanteen/menu') => {
 
   const localRelativeUrl = `/uploads/${file.filename}`;
 
-  if (!isCloudinaryConfigured) {
+  if (process.env.NODE_ENV === 'test' || !isCloudinaryConfigured) {
     return localRelativeUrl;
   }
 

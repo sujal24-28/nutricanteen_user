@@ -39,7 +39,16 @@ export const CanteenHomeView = () => {
   } = useCanteen();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Debounce search query input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Touch swipe support
   const touchStartX = useRef(null);
@@ -114,8 +123,8 @@ export const CanteenHomeView = () => {
   const filteredItems = useMemo(() => {
     return itemsToFilter.filter((item) => {
       // Search filter
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
+      if (!debouncedSearchQuery.trim()) return true;
+      const q = debouncedSearchQuery.toLowerCase();
       const matchesName = item.name && item.name.toLowerCase().includes(q);
       const matchesDesc = item.description && item.description.toLowerCase().includes(q);
       const matchesDiet = item.dietaryTag && item.dietaryTag.toLowerCase().includes(q);
@@ -123,7 +132,7 @@ export const CanteenHomeView = () => {
 
       return matchesName || matchesDesc || matchesDiet || matchesCategory;
     });
-  }, [itemsToFilter, searchQuery]);
+  }, [itemsToFilter, debouncedSearchQuery]);
 
   return (
     <div className="pb-28 pt-2.5 px-3.5 sm:px-5 space-y-3">

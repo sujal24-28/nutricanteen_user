@@ -4,6 +4,8 @@ const { sequelize }  = require('../config/database');
 const { Student, MenuItem, Cart, Order, OrderItem, WalletTransaction } = require('../models');
 const { parsePagination, paginationMeta } = require('../utils/pagination.util');
 const { addRupees, subRupees, mulRupees, parseRupees } = require('../utils/money.util');
+const { serializeOrder } = require('../utils/serializer.util');
+
 
 
 /**
@@ -125,7 +127,12 @@ const listOrders = async (query, user) => {
       {
         model: OrderItem,
         as:    'items',
-        include: [{ model: MenuItem, as: 'menuItem', attributes: ['id', 'name'] }],
+        include: [{ model: MenuItem, as: 'menuItem', attributes: ['id', 'name', 'image_url'] }],
+      },
+      {
+        model:      Student,
+        as:         'student',
+        attributes: ['id', 'name', 'class', 'roll', 'section', 'phone'],
       },
     ],
     order:  [['created_at', 'DESC']],
@@ -133,7 +140,7 @@ const listOrders = async (query, user) => {
     offset,
   });
 
-  return { orders: rows, meta: paginationMeta(count, page, limit) };
+  return { orders: rows.map(serializeOrder), meta: paginationMeta(count, page, limit) };
 };
 
 /**
@@ -165,7 +172,7 @@ const getOrder = async (orderId, studentIdOrNull = null) => {
     err.statusCode = 404;
     throw err;
   }
-  return order;
+  return serializeOrder(order);
 };
 
 /**

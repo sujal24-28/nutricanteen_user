@@ -5,11 +5,12 @@ const { body } = require('express-validator');
 
 const ctrl     = require('../controllers/auth.controller');
 const { validate }     = require('../middlewares/validate.middleware');
-const { otpLimiter, loginLimiter }   = require('../middlewares/rateLimiter.middleware');
+const { otpSendLimiter, otpVerifyLimiter, loginLimiter } = require('../middlewares/rateLimiter.middleware');
 
 /* 📱 Common Auth 📱 */
 router.post(
   '/check-user',
+  otpSendLimiter,
   [
     body('phone')
       .trim()
@@ -26,6 +27,7 @@ const { upload } = require('../middlewares/upload.middleware');
 
 router.post(
   '/student/register',
+  otpSendLimiter,
   [
     body('name').trim().notEmpty().withMessage('Name is required'),
     body('school_id').optional({ nullable: true }).isInt().withMessage('Invalid school'),
@@ -42,7 +44,7 @@ router.post(
 
 router.post(
   '/student/send-otp',
-  otpLimiter,
+  otpSendLimiter,
   [
     body('phone')
       .trim()
@@ -55,7 +57,7 @@ router.post(
 
 router.post(
   '/student/verify-otp',
-  otpLimiter,
+  otpVerifyLimiter,
   [
     body('phone').trim().notEmpty().withMessage('Phone is required'),
     body('otp').trim().isLength({ min: 6, max: 6 }).isNumeric().withMessage('OTP must be 6 digits'),
