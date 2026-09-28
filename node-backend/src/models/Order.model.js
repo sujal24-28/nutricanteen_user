@@ -42,7 +42,11 @@ const Order = sequelize.define('Order', {
   },
 }, {
   tableName: 'orders',
-  indexes:   [{ fields: ['student_id'] }, { fields: ['status'] }],
+  indexes: [
+    { fields: ['student_id'] },
+    { fields: ['status'] },
+    { fields: ['created_at'] },
+  ],
 });
 
 module.exports = Order;

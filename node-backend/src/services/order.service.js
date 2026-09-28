@@ -3,6 +3,8 @@
 const { sequelize }  = require('../config/database');
 const { Student, MenuItem, Cart, Order, OrderItem, WalletTransaction } = require('../models');
 const { parsePagination, paginationMeta } = require('../utils/pagination.util');
+const { addRupees, subRupees, mulRupees, parseRupees } = require('../utils/money.util');
+
 
 /**
  * Place an order from the student's current cart.
@@ -12,13 +14,15 @@ const placeOrder = async (studentId, { pickupTime, note, items = null } = {}) =>
   let cartItems = [];
 
   if (items && Array.isArray(items) && items.length > 0) {
-    // Client sent items directly to bypass sequential POST /cart overhead
+    // Client sent items directly — fetch all menu items in one query (no N+1)
+    const itemIds = items.map((i) => i.item_id);
+    const menuItems = await MenuItem.findAll({ where: { id: itemIds } });
+    const menuItemMap = Object.fromEntries(menuItems.map((m) => [m.id, m]));
     for (const item of items) {
-      const menuItem = await MenuItem.findByPk(item.item_id);
       cartItems.push({
         item_id: item.item_id,
         quantity: item.quantity,
-        menuItem: menuItem
+        menuItem: menuItemMap[item.item_id] || null,
       });
     }
   } else {
@@ -44,10 +48,12 @@ const placeOrder = async (studentId, { pickupTime, note, items = null } = {}) =>
     }
   }
 
-  const total = cartItems.reduce(
-    (sum, c) => sum + parseFloat(c.menuItem.price) * c.quantity,
+  // Calculate total using integer-paise arithmetic to avoid IEEE-754 drift
+  const totalPaise = cartItems.reduce(
+    (sum, c) => sum + Math.round(parseFloat(c.menuItem.price) * 100) * c.quantity,
     0
   );
+  const total = totalPaise / 100;  // safe 2dp number for storage
 
   let createdOrder;
 
@@ -55,15 +61,15 @@ const placeOrder = async (studentId, { pickupTime, note, items = null } = {}) =>
     // Lock student row and check balance
     const student = await Student.findByPk(studentId, { lock: true, transaction: t });
 
-    if (parseFloat(student.wallet_balance) < total) {
+    if (Math.round(parseFloat(student.wallet_balance) * 100) < totalPaise) {
       const err = new Error(
-        `Insufficient wallet balance. Required: ₹${total.toFixed(2)}, Available: ₹${parseFloat(student.wallet_balance).toFixed(2)}`
+        `Insufficient wallet balance. Required: ₹${total.toFixed(2)}, Available: ₹${parseRupees(student.wallet_balance).toFixed(2)}`
       );
       err.statusCode = 402;
       throw err;
     }
 
-    const newBalance = parseFloat(student.wallet_balance) - total;
+    const newBalance = subRupees(student.wallet_balance, total);
     await student.update({ wallet_balance: newBalance }, { transaction: t });
 
     // Create order
@@ -80,7 +86,7 @@ const placeOrder = async (studentId, { pickupTime, note, items = null } = {}) =>
       order_id:   createdOrder.id,
       item_id:    c.item_id,
       quantity:   c.quantity,
-      unit_price: parseFloat(c.menuItem.price),
+      unit_price: parseRupees(c.menuItem.price),
     }));
     await OrderItem.bulkCreate(orderItemsData, { transaction: t });
 
@@ -90,13 +96,14 @@ const placeOrder = async (studentId, { pickupTime, note, items = null } = {}) =>
       type:          'debit',
       amount:        total,
       balance_after: newBalance,
-      ref_id:        String(createdOrder.id),
+      ref_id:        `order:${createdOrder.id}`,
       description:   `Order #${createdOrder.id}`,
     }, { transaction: t });
 
     // Clear cart
     await Cart.destroy({ where: { student_id: studentId }, transaction: t });
   });
+
 
   // Return full order with items
   return getOrder(createdOrder.id, studentId);
@@ -194,15 +201,15 @@ const updateStatus = async (orderId, newStatus) => {
     await sequelize.transaction(async (t) => {
       const student = await Student.findByPk(order.student_id, { lock: true, transaction: t });
       if (student) {
-        const newBalance = parseFloat(student.wallet_balance || 0) + parseFloat(order.total_amount || 0);
+        const newBalance = addRupees(student.wallet_balance, order.total_amount);
         await student.update({ wallet_balance: newBalance }, { transaction: t });
 
         await WalletTransaction.create({
           student_id:    order.student_id,
           type:          'credit',
-          amount:        parseFloat(order.total_amount),
+          amount:        parseRupees(order.total_amount),
           balance_after: newBalance,
-          ref_id:        String(orderId),
+          ref_id:        `refund:order:${orderId}`,
           description:   `Refund: Order #${orderId} cancelled by canteen staff`,
         }, { transaction: t });
       }
@@ -225,44 +232,50 @@ const updateStatus = async (orderId, newStatus) => {
  * Refunds wallet.
  */
 const cancelOrder = async (orderId, studentId) => {
-  const order = await Order.findOne({
-    where: { id: orderId, student_id: studentId },
-  });
-
-  if (!order) {
-    const err = new Error('Order not found');
-    err.statusCode = 404;
-    throw err;
-  }
-
-  if (order.status !== 'pending') {
-    const err = new Error(`Cannot cancel an order that is '${order.status}'`);
-    err.statusCode = 400;
-    throw err;
-  }
+  let cancelledOrder;
 
   await sequelize.transaction(async (t) => {
+    // Fetch AND lock the order inside the transaction to prevent double-refund
+    const order = await Order.findOne({
+      where: { id: orderId, student_id: studentId },
+      lock: true,
+      transaction: t,
+    });
+
+    if (!order) {
+      const err = new Error('Order not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (order.status !== 'pending') {
+      const err = new Error(`Cannot cancel an order that is '${order.status}'`);
+      err.statusCode = 400;
+      throw err;
+    }
+
     const student    = await Student.findByPk(studentId, { lock: true, transaction: t });
-    const newBalance = parseFloat(student.wallet_balance) + parseFloat(order.total_amount);
+    const newBalance = addRupees(student.wallet_balance, order.total_amount);
 
     await student.update({ wallet_balance: newBalance }, { transaction: t });
 
     await WalletTransaction.create({
       student_id:    studentId,
       type:          'credit',
-      amount:        parseFloat(order.total_amount),
+      amount:        parseRupees(order.total_amount),
       balance_after: newBalance,
-      ref_id:        String(orderId),
+      ref_id:        `refund:order:${orderId}`,
       description:   `Refund for cancelled Order #${orderId}`,
     }, { transaction: t });
 
-    order.status       = 'cancelled';
-    order.cancelled_at = new Date();
+    order.status        = 'cancelled';
+    order.cancelled_at  = new Date();
     order.cancel_reason = 'Cancelled by student';
     await order.save({ transaction: t });
+    cancelledOrder = order;
   });
 
-  return order;
+  return cancelledOrder;
 };
 
 module.exports = { placeOrder, listOrders, getOrder, updateStatus, cancelOrder };

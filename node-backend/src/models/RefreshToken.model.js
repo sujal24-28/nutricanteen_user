@@ -34,7 +34,12 @@ const RefreshToken = sequelize.define('RefreshToken', {
   },
 }, {
   tableName: 'refresh_tokens',
-  indexes:   [{ fields: ['owner_id', 'owner_type'] }],
+  indexes: [
+    { fields: ['owner_id', 'owner_type'] },
+    // Composite index speeds up the token lookup: WHERE owner_id=? AND owner_type=? AND is_revoked=false
+    { fields: ['owner_id', 'owner_type', 'is_revoked'], name: 'idx_refresh_owner_active' },
+    { fields: ['expires_at'], name: 'idx_refresh_expires' },
+  ],
 });
 
 module.exports = RefreshToken;

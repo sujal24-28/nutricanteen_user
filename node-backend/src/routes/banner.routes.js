@@ -4,6 +4,7 @@ const router = require('express').Router();
 const fs = require('fs');
 const path = require('path');
 const { upload } = require('../middlewares/upload.middleware');
+const { protectAdmin } = require('../middlewares/auth.middleware');
 const { Banner } = require('../models');
 const logger = require('../utils/logger.util');
 const { uploadToCloudinary } = require('../utils/cloudinary.util');
@@ -127,8 +128,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/v1/banner (Admin upload/update/delete)
-router.post('/', upload.single('image'), async (req, res) => {
+// POST /api/v1/banner (Admin upload/update/delete) — requires admin auth
+router.post('/', protectAdmin, upload.single('image'), async (req, res) => {
   try {
     const { title, subtitle, reset, deleteId } = req.body;
     let config = readConfigFallback() || { banners: [], isCustom: false };
@@ -209,8 +210,8 @@ router.post('/', upload.single('image'), async (req, res) => {
       },
     });
   } catch (err) {
-    logger.error('Failed to update banner', { error: err.message });
-    return res.status(500).json({ success: false, error: err.message });
+    logger.error('Failed to update banner', { error: err.message, stack: err.stack });
+    return res.status(500).json({ success: false, message: 'Failed to update banner' });
   }
 });
 

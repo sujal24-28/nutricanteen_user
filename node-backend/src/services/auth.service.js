@@ -8,6 +8,8 @@ const { Student, Admin, OtpRecord, RefreshToken } = require('../models');
 const { generateOtp, hashOtp, compareOtp }        = require('../utils/otp.util');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../utils/jwt.util');
 const { sendOtpViaMSG91 } = require('../utils/msg91.util');
+const { parseRupees } = require('../utils/money.util');
+
 
 const OTP_TTL_MINUTES = parseInt(process.env.OTP_EXPIRES_MINUTES, 10) || 10;
 const MAX_OTP_ATTEMPTS = 5;
@@ -307,7 +309,7 @@ const sanitizeStudent = (s) => ({
   section:        s.section,
   phone:          s.phone,
   avatar:         s.avatar,
-  wallet_balance: parseFloat(s.wallet_balance),
+  wallet_balance: parseRupees(s.wallet_balance),
   is_active:      s.is_active,
   created_at:     s.created_at,
 });

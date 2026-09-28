@@ -30,7 +30,8 @@ const WalletTransaction = sequelize.define('WalletTransaction', {
   ref_id: {
     type:      DataTypes.STRING(100),
     allowNull: true,
-    comment:   'Reference to order_id or topup request id',
+    unique:    false, // uniqueness enforced via index below (allows NULL)
+    comment:   'Unique reference: payment:<razorpay_payment_id> or order:<order_id>. Unique when non-null.',
   },
   description: {
     type:      DataTypes.STRING(255),
@@ -39,7 +40,12 @@ const WalletTransaction = sequelize.define('WalletTransaction', {
 }, {
   tableName:  'wallet_transactions',
   updatedAt:  false,          // Immutable ledger — no updates
-  indexes:    [{ fields: ['student_id'] }],
+  indexes: [
+    { fields: ['student_id'] },
+    // Partial unique index: prevent duplicate payment/order references
+    // Note: NULL values are excluded from unique checks in MySQL, so nulls are fine
+    { unique: true, fields: ['ref_id'], name: 'unique_wallet_ref_id' },
+  ],
 });
 
 module.exports = WalletTransaction;

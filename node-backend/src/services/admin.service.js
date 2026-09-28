@@ -5,6 +5,8 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { Student, Admin, Order, WalletTransaction } = require('../models');
 const { parsePagination, paginationMeta } = require('../utils/pagination.util');
+const { addRupees, subRupees, parseRupees } = require('../utils/money.util');
+
 
 /**
  * List all students with optional search.
@@ -56,7 +58,7 @@ const getStudent = async (studentId) => {
   return {
     ...student.toJSON(),
     order_count:  orderCount,
-    total_spent:  parseFloat(totalSpent || 0),
+    total_spent:  parseRupees(totalSpent || 0),
   };
 };
 
@@ -78,13 +80,13 @@ const creditWallet = async (studentId, amount, description) => {
       err.statusCode = 404;
       throw err;
     }
-    newBalance = parseFloat(student.wallet_balance) + parseFloat(amount);
+    newBalance = addRupees(student.wallet_balance, amount);
 
     await student.update({ wallet_balance: newBalance }, { transaction: t });
     await WalletTransaction.create({
       student_id:    studentId,
       type:          'credit',
-      amount:        parseFloat(amount),
+      amount:        parseRupees(amount),
       balance_after: newBalance,
       description:   description || `Admin manual credit`,
     }, { transaction: t });
@@ -118,13 +120,13 @@ const debitWallet = async (studentId, amount, description) => {
       throw err;
     }
     
-    newBalance = parseFloat(student.wallet_balance) - parseFloat(amount);
+    newBalance = subRupees(student.wallet_balance, amount);
 
     await student.update({ wallet_balance: newBalance }, { transaction: t });
     await WalletTransaction.create({
       student_id:    studentId,
       type:          'debit',
-      amount:        parseFloat(amount),
+      amount:        parseRupees(amount),
       balance_after: newBalance,
       description:   description || `Admin manual debit / Counter purchase`,
     }, { transaction: t });
@@ -170,8 +172,8 @@ const getDashboard = async () => {
     total_students:         totalStudents,
     total_orders:           totalOrders,
     pending_orders:         pendingOrders,
-    total_revenue:          parseFloat(totalRevenue || 0),
-    total_remaining_wallet: parseFloat(totalRemainingWallet || 0),
+    total_revenue:          parseRupees(totalRevenue || 0),
+    total_remaining_wallet: parseRupees(totalRemainingWallet || 0),
   };
 };
 

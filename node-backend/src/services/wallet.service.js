@@ -6,6 +6,8 @@ const { Student, WalletTransaction } = require('../models');
 const { generateOtp, hashOtp, compareOtp }      = require('../utils/otp.util');
 const { sendOtpViaMSG91 }                        = require('../utils/msg91.util');
 const { parsePagination, paginationMeta }        = require('../utils/pagination.util');
+const { addRupees, parseRupees }                 = require('../utils/money.util');
+
 
 const OTP_TTL_MINUTES  = parseInt(process.env.OTP_EXPIRES_MINUTES, 10) || 10;
 const MAX_TOPUP        = parseFloat(process.env.WALLET_MAX_TOPUP) || 5000;
@@ -35,7 +37,7 @@ const getWallet = async (studentId, query) => {
   });
 
   return {
-    wallet_balance: parseFloat(student.wallet_balance),
+    wallet_balance: parseRupees(student.wallet_balance),
     transactions:   rows,
     meta:           paginationMeta(count, page, limit),
   };
@@ -127,28 +129,33 @@ const verifyTopupPayment = async (studentId, razorpay_order_id, razorpay_payment
   }
 
   const verifiedAmount = expectedPaise / 100;
-  if (razorpayOrder.notes?.student_id && String(razorpayOrder.notes.student_id) !== String(studentId)) {
+  // Strict ownership: notes.student_id MUST exist and match
+  if (!razorpayOrder.notes?.student_id || String(razorpayOrder.notes.student_id) !== String(studentId)) {
     const err = new Error('Payment does not belong to this student');
     err.statusCode = 403;
     throw err;
   }
 
-  // Idempotency: do not credit the same payment twice.
-  const existing = await WalletTransaction.findOne({
-    where: { ref_id: `payment:${razorpay_payment_id}` },
-  });
-  if (existing) {
-    return {
-      message: 'Payment already processed',
-      amount_credited: parseFloat(existing.amount),
-      new_wallet_balance: parseFloat(existing.balance_after),
-      payment_id: razorpay_payment_id,
-    };
-  }
-
-  // 🔒 Atomic: credit wallet + record transaction 🔒
+  // 🔒 Atomic: idempotency check + credit wallet + record transaction 🔒
   let newBalance;
+  let alreadyProcessed = null;
   await sequelize.transaction(async (t) => {
+    // Check idempotency INSIDE the transaction after acquiring the lock
+    const existing = await WalletTransaction.findOne({
+      where: { ref_id: `payment:${razorpay_payment_id}` },
+      lock: t.LOCK.UPDATE,
+      transaction: t,
+    });
+    if (existing) {
+      alreadyProcessed = {
+        message: 'Payment already processed',
+        amount_credited: parseFloat(existing.amount),
+        new_wallet_balance: parseFloat(existing.balance_after),
+        payment_id: razorpay_payment_id,
+      };
+      return; // exit transaction callback — no wallet change
+    }
+
     // Lock student row
     const s = await Student.findByPk(studentId, { lock: true, transaction: t });
     if (!s) {
@@ -157,7 +164,7 @@ const verifyTopupPayment = async (studentId, razorpay_order_id, razorpay_payment
       throw err;
     }
 
-    newBalance = parseFloat(s.wallet_balance) + verifiedAmount;
+    newBalance = addRupees(s.wallet_balance, verifiedAmount);
 
     await s.update({ wallet_balance: newBalance }, { transaction: t });
 
@@ -170,6 +177,8 @@ const verifyTopupPayment = async (studentId, razorpay_order_id, razorpay_payment
       description:   `Wallet top-up via Razorpay (Txn ID: ${razorpay_payment_id})`,
     }, { transaction: t });
   });
+
+  if (alreadyProcessed) return alreadyProcessed;
 
   return {
     message:           'Wallet topped up successfully',

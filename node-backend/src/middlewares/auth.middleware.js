@@ -2,11 +2,10 @@
 
 const { verifyToken }   = require('../utils/jwt.util');
 const { errorResponse } = require('../utils/response.util');
-const { RefreshToken }  = require('../models');
 
 /**
  * Middleware: protect student routes.
- * Expects: Authorization: Bearer <accessToken>
+ * Validates JWT access token; role must be 'student'.
  */
 const protect = async (req, res, next) => {
   try {
@@ -22,7 +21,17 @@ const protect = async (req, res, next) => {
       return errorResponse(res, 'Access denied', 403);
     }
 
-    req.user = { id: decoded.id, role: decoded.role };
+    // Re-validate student in DB to catch deactivated/deleted students immediately
+    const { Student } = require('../models');
+    const student = await Student.findByPk(decoded.id, {
+      attributes: ['id', 'is_active'],
+    });
+
+    if (!student || !student.is_active) {
+      return errorResponse(res, 'Account not found or deactivated', 401);
+    }
+
+    req.user = { id: student.id, role: 'student' };
     return next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -34,7 +43,12 @@ const protect = async (req, res, next) => {
 
 /**
  * Middleware: protect admin routes.
- * Expects: Authorization: Bearer <accessToken>
+ * Validates JWT AND re-checks the database to detect:
+ *   - deactivated admins (is_active = false)
+ *   - demoted roles (token says superadmin but DB now says staff, or vice-versa)
+ *
+ * The DB lookup is intentionally lightweight: SELECT only id, role, is_active.
+ * Access tokens are short-lived (15 min) so the extra query is infrequent.
  */
 const protectAdmin = async (req, res, next) => {
   try {
@@ -50,7 +64,23 @@ const protectAdmin = async (req, res, next) => {
       return errorResponse(res, 'Admin access required', 403);
     }
 
-    req.user = { id: decoded.id, role: decoded.role };
+    // Re-validate against the database to catch deactivated/demoted admins
+    // Import lazily to avoid circular-dependency issues at startup
+    const { Admin } = require('../models');
+    const admin = await Admin.findByPk(decoded.id, {
+      attributes: ['id', 'role', 'is_active'],
+    });
+
+    if (!admin || !admin.is_active) {
+      return errorResponse(res, 'Account not found or deactivated', 401);
+    }
+
+    // Always use the live DB role, not the (potentially stale) JWT role
+    if (!['superadmin', 'staff'].includes(admin.role)) {
+      return errorResponse(res, 'Admin access required', 403);
+    }
+
+    req.user = { id: admin.id, role: admin.role };
     return next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -60,12 +90,11 @@ const protectAdmin = async (req, res, next) => {
   }
 };
 
-
-
 /**
  * Protect either student or admin endpoints while keeping one token parser.
+ * Re-validates active account against DB.
  */
-const protectAny = (req, res, next) => {
+const protectAny = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -77,7 +106,22 @@ const protectAny = (req, res, next) => {
       return errorResponse(res, 'Access denied', 403);
     }
 
-    req.user = { id: decoded.id, role: decoded.role };
+    if (decoded.role === 'student') {
+      const { Student } = require('../models');
+      const student = await Student.findByPk(decoded.id, { attributes: ['id', 'is_active'] });
+      if (!student || !student.is_active) {
+        return errorResponse(res, 'Account not found or deactivated', 401);
+      }
+      req.user = { id: student.id, role: 'student' };
+    } else {
+      const { Admin } = require('../models');
+      const admin = await Admin.findByPk(decoded.id, { attributes: ['id', 'role', 'is_active'] });
+      if (!admin || !admin.is_active || !['superadmin', 'staff'].includes(admin.role)) {
+        return errorResponse(res, 'Account not found or deactivated', 401);
+      }
+      req.user = { id: admin.id, role: admin.role };
+    }
+
     return next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {

@@ -48,15 +48,17 @@ async function connectDB() {
   await sequelize.authenticate();
   logger.info('✅ MySQL connection established.');
 
-  const syncOptions = process.env.NODE_ENV === 'test'
-    ? { force: true }
-    : { }; // Disabled alter:true to prevent Sequelize MySQL index explosion
-
-  // Import models so they register themselves with sequelize
+  // Import models so associations are registered
   require('../models');
 
-  await sequelize.sync(syncOptions);
-  logger.info('✅ Database models synchronized.');
+  // Only sync schema in development/test — use migrations in production
+  if (process.env.NODE_ENV !== 'production') {
+    const syncOptions = process.env.NODE_ENV === 'test' ? { force: true } : {};
+    await sequelize.sync(syncOptions);
+    logger.info('✅ Database models synchronized (development mode).');
+  } else {
+    logger.info('ℹ️  Production mode: skipping sequelize.sync() — apply schema changes via migrations.');
+  }
 }
 
 module.exports = { sequelize, connectDB };

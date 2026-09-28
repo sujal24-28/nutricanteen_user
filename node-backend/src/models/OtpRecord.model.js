@@ -40,6 +40,7 @@ const OtpRecord = sequelize.define('OtpRecord', {
   tableName: 'otp_records',
   indexes: [
     { fields: ['phone', 'purpose'] },
+    { fields: ['expires_at'] },
   ],
 });
 

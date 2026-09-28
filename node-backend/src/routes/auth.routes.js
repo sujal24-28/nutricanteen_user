@@ -5,7 +5,7 @@ const { body } = require('express-validator');
 
 const ctrl     = require('../controllers/auth.controller');
 const { validate }     = require('../middlewares/validate.middleware');
-const { otpLimiter }   = require('../middlewares/rateLimiter.middleware');
+const { otpLimiter, loginLimiter }   = require('../middlewares/rateLimiter.middleware');
 
 /* 📱 Common Auth 📱 */
 router.post(
@@ -82,6 +82,7 @@ router.post(
 
 router.post(
   '/admin/login',
+  loginLimiter,
   [
     body('identifier').trim().notEmpty().withMessage('Email or Phone is required'),
     body('password').notEmpty().withMessage('Password required'),

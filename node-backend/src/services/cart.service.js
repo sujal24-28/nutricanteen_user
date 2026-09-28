@@ -1,6 +1,7 @@
 'use strict';
 
 const { Cart, MenuItem } = require('../models');
+const { toPaise, toRupees } = require('../utils/money.util');
 
 /**
  * Get all cart items for a student.
@@ -12,11 +13,11 @@ const getCart = async (studentId) => {
     order:   [['created_at', 'ASC']],
   });
 
-  const subtotal = items.reduce((sum, c) => {
-    return sum + (parseFloat(c.menuItem?.price || 0) * c.quantity);
+  const subtotalPaise = items.reduce((sum, c) => {
+    return sum + (toPaise(c.menuItem?.price || 0) * (c.quantity || 1));
   }, 0);
 
-  return { items, subtotal: parseFloat(subtotal.toFixed(2)) };
+  return { items, subtotal: toRupees(subtotalPaise) };
 };
 
 /**

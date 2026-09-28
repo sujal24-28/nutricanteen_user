@@ -1,14 +1,24 @@
 const request = require('supertest');
 const app = require('../../src/app');
-const { MenuItem } = require('../../src/models');
+const { MenuItem, Admin } = require('../../src/models');
 const { generateAccessToken } = require('../../src/utils/jwt.util');
 
 describe('Menu Integration Tests', () => {
   let adminToken;
 
-  beforeAll(() => {
-    // Mock admin token
-    adminToken = generateAccessToken({ id: 1, role: 'superadmin' });
+  beforeAll(async () => {
+    // Create test admin in DB for DB-backed protectAdmin middleware
+    const [admin] = await Admin.findOrCreate({
+      where: { id: 1 },
+      defaults: {
+        name: 'Test Superadmin',
+        email: 'testadmin@nutricanteen.com',
+        password_hash: 'testhash',
+        role: 'superadmin',
+        is_active: true,
+      },
+    });
+    adminToken = generateAccessToken({ id: admin.id, role: admin.role });
   });
 
   beforeEach(async () => {
@@ -55,13 +65,16 @@ describe('Menu Integration Tests', () => {
   });
 
   it('should allow admin to upload a photo for menu item', async () => {
+    // Valid 8-byte PNG header + dummy chunk so magic-byte validation passes
+    const validPngBuffer = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00]);
+
     const res = await request(app)
       .post('/api/v1/menu')
       .set('Authorization', `Bearer ${adminToken}`)
       .field('name', 'Pasta with Image')
       .field('price', 12.99)
       .field('category', 'Lunch')
-      .attach('image', Buffer.from('fake-image-content'), 'fake.png');
+      .attach('image', validPngBuffer, 'valid.png');
 
     expect(res.statusCode).toEqual(201);
     expect(res.body.success).toBe(true);

@@ -20,7 +20,7 @@ const listItems = async (query) => {
     where.name = { [Op.like]: `%${query.search}%` };
   }
 
-  const rows = await MenuItem.findAll({
+  const { count, rows } = await MenuItem.findAndCountAll({
     where,
     order:  [['category', 'ASC'], ['name', 'ASC']],
     limit,
@@ -29,6 +29,7 @@ const listItems = async (query) => {
 
   return {
     items: rows,
+    meta:  paginationMeta(count, page, limit),
   };
 };
 
