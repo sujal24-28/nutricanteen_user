@@ -13,6 +13,20 @@ export interface AdminPayload {
   id: number;
   role: 'superadmin' | 'admin' | 'staff';
   name: string;
+  permissions?: string[];
+}
+
+export function hasPermission(session: AdminPayload | null, sectionId: string): boolean {
+  if (!session) return false;
+  if (session.role === 'superadmin' || session.role === 'admin') return true;
+  if (session.role === 'staff') {
+    const perms = Array.isArray(session.permissions) ? session.permissions : [];
+    if (perms.length === 0) {
+      return ['orders', 'orders_sheet'].includes(sectionId);
+    }
+    return perms.includes(sectionId);
+  }
+  return false;
 }
 
 export async function signToken(payload: AdminPayload) {

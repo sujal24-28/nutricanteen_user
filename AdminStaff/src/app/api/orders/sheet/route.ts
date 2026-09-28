@@ -1,20 +1,38 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, hasPermission } from '@/lib/auth';
 import { connectDB, sequelize } from '@/config/database';
+import { Op } from 'sequelize';
 const { Order, OrderItem, MenuItem, Student } = require('@/models');
 
 export async function GET(req: Request) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'orders_sheet')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get('date'); // e.g. "2026-09-27" or "all"
+    const startDate = searchParams.get('startDate'); // e.g. "2026-09-01"
+    const endDate = searchParams.get('endDate'); // e.g. "2026-09-28"
 
     await connectDB();
 
-    let whereClause = undefined;
-    if (dateParam && dateParam !== 'all') {
+    let whereClause: any = undefined;
+    if (startDate && endDate) {
+      whereClause = sequelize.where(
+        sequelize.fn('DATE', sequelize.col('Order.created_at')),
+        { [Op.between]: [startDate, endDate] }
+      );
+    } else if (startDate) {
+      whereClause = sequelize.where(
+        sequelize.fn('DATE', sequelize.col('Order.created_at')),
+        { [Op.gte]: startDate }
+      );
+    } else if (endDate) {
+      whereClause = sequelize.where(
+        sequelize.fn('DATE', sequelize.col('Order.created_at')),
+        { [Op.lte]: endDate }
+      );
+    } else if (dateParam && dateParam !== 'all') {
       whereClause = sequelize.where(
         sequelize.fn('DATE', sequelize.col('Order.created_at')),
         dateParam
@@ -76,6 +94,24 @@ export async function GET(req: Request) {
             }
           ];
 
+      let studentName = plain.student?.name || 'Student';
+      let studentClass = plain.student?.class || '—';
+      let studentSection = plain.student?.section || '';
+      let studentRoll = plain.student?.roll || '—';
+
+      if (plain.note && plain.note.includes('|')) {
+        try {
+          const parts = plain.note.split('|').map((s: string) => s.trim());
+          for (const p of parts) {
+            const lower = p.toLowerCase();
+            if (lower.startsWith('name:')) studentName = p.split(':')[1]?.trim() || studentName;
+            if (lower.startsWith('class:')) studentClass = p.split(':')[1]?.trim() || studentClass;
+            if (lower.startsWith('sec:') || lower.startsWith('section:')) studentSection = p.split(':')[1]?.trim() || studentSection;
+            if (lower.startsWith('roll:') || lower.startsWith('roll')) studentRoll = p.split(':')[1]?.trim() || studentRoll;
+          }
+        } catch (_) {}
+      }
+
       return {
         id: plain.id,
         status: plain.status || 'pending',
@@ -83,19 +119,31 @@ export async function GET(req: Request) {
         createdAt: rawDate,
         dateDisplay,
         student: {
-          name: plain.student?.name || 'Student',
-          class: plain.student?.class || '—',
-          section: plain.student?.section || '',
-          roll: plain.student?.roll || '—',
+          name: studentName,
+          class: studentClass,
+          section: studentSection,
+          roll: studentRoll,
           phone: plain.student?.phone || '',
         },
         items,
       };
     });
 
+    const totalOrders = formattedOrders.length;
+    const grandTotal = formattedOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
+    const uniqueStudents = new Set(formattedOrders.map((o: any) => o.student?.name || o.student?.roll)).size;
+
     return NextResponse.json({
       orders: formattedOrders,
       availableDates: dateRows,
+      summary: {
+        totalOrders,
+        grandTotal,
+        uniqueStudents,
+        startDate: startDate || null,
+        endDate: endDate || null,
+        date: dateParam || null,
+      },
     }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',

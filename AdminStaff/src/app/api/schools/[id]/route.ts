@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, hasPermission } from '@/lib/auth';
 import { connectDB, sequelize } from '@/config/database';
 const { School } = require('@/models');
 
@@ -82,7 +82,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    if (!session || session.role === 'staff') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'schools')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     const { id } = await params;
     const data = await req.json();
@@ -101,7 +101,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    if (!session || session.role === 'staff') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'schools')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     const { id } = await params;
     await connectDB();

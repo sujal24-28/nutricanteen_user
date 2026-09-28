@@ -33,9 +33,10 @@ export async function POST(req: Request) {
       id: admin.id,
       role: admin.role,
       name: admin.name,
+      permissions: admin.permissions || [],
     });
 
-    return NextResponse.json({ success: true, role: admin.role });
+    return NextResponse.json({ success: true, role: admin.role, permissions: admin.permissions || [] });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

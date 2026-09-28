@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCanteen } from '../../context/CanteenContext';
+import { useCanteen } from '../../context/useCanteen';
 import { X, Save } from 'lucide-react';
 import { apiCompleteProfile } from '../../services/api';
 

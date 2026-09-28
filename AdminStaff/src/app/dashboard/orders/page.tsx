@@ -27,15 +27,30 @@ export default function OrdersPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const updateStatus = async (id: number, status: string) => {
+  const updateStatus = async (id: number, status: string, totalAmount?: number) => {
+    if (status === 'cancelled') {
+      const ok = window.confirm(`Cancel Order #${id}? The full amount of ₹${totalAmount ?? ''} will be automatically refunded to the student's wallet balance.`);
+      if (!ok) return;
+    }
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-      if (res.ok) fetchOrders();
-    } catch (e) { console.error(e); }
+      const data = await res.json();
+      if (res.ok) {
+        if (data.refunded) {
+          alert(`✅ Order #${id} cancelled.\n₹${data.refundAmount} has been refunded to the student's wallet (New balance: ₹${data.newBalance}).`);
+        }
+        fetchOrders();
+      } else {
+        alert(data.error || 'Failed to update order status');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error while updating status');
+    }
   };
 
   // Bulk update all orders of a given current status → next status
@@ -165,17 +180,25 @@ export default function OrdersPage() {
   );
 }
 
-function OrderCard({ order, onUpdate }: { order: any, onUpdate: (id: number, status: string) => void }) {
+function OrderCard({ order, onUpdate }: { order: any, onUpdate: (id: number, status: string, totalAmount?: number) => void }) {
   return (
     <div className="border border-brand-brown-light/20 p-4 rounded-lg bg-brand-offwhite">
       <div className="flex justify-between items-start mb-2">
         <div>
           <span className="font-bold text-brand-brown-dark">Order #{order.id}</span>
-          <p className="text-sm text-brand-brown-light">{order.student?.name}</p>
-          <p className="text-xs text-gray-400">{order.student?.class} {order.student?.section} · Roll {order.student?.roll}</p>
+          <p className="text-sm font-semibold text-brand-brown-light">{order.student?.name}</p>
+          <p className="text-xs text-gray-500">{order.student?.class} {order.student?.section} · Roll {order.student?.roll}</p>
         </div>
         <span className="font-bold text-brand-gold-dark">₹{order.total_amount}</span>
       </div>
+
+      {order.note && (
+        <div className="mb-3 text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded p-1.5 flex items-start gap-1">
+          <span className="font-bold shrink-0">📍 Delivery:</span>
+          <span className="break-words">{order.note}</span>
+        </div>
+      )}
+
       <div className="text-sm text-brand-brown-dark mb-4">
         <ul className="list-disc pl-4">
           {order.items?.map((item: any) => (
@@ -184,10 +207,10 @@ function OrderCard({ order, onUpdate }: { order: any, onUpdate: (id: number, sta
         </ul>
       </div>
       <div className="flex gap-2 mt-2">
-        {order.status === 'pending'   && <button onClick={() => onUpdate(order.id, 'confirmed')} className="flex-1 bg-brand-gold hover:bg-brand-gold-dark text-brand-brown-dark text-sm font-bold py-1.5 rounded">Start</button>}
-        {order.status === 'confirmed' && <button onClick={() => onUpdate(order.id, 'ready')}     className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-1.5 rounded">Ready</button>}
-        {order.status === 'ready'     && <button onClick={() => onUpdate(order.id, 'delivered')} className="flex-1 bg-brand-brown-dark hover:bg-brand-brown text-white text-sm font-bold py-1.5 rounded">Delivered</button>}
-        <button onClick={() => onUpdate(order.id, 'cancelled')} className="px-3 bg-red-100 text-red-700 text-sm font-bold py-1.5 rounded">Cancel</button>
+        {order.status === 'pending'   && <button onClick={() => onUpdate(order.id, 'confirmed')} className="flex-1 bg-brand-gold hover:bg-brand-gold-dark text-brand-brown-dark text-sm font-bold py-1.5 rounded transition">Start</button>}
+        {order.status === 'confirmed' && <button onClick={() => onUpdate(order.id, 'ready')}     className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-1.5 rounded transition">Ready</button>}
+        {order.status === 'ready'     && <button onClick={() => onUpdate(order.id, 'delivered')} className="flex-1 bg-brand-brown-dark hover:bg-brand-brown text-white text-sm font-bold py-1.5 rounded transition">Delivered</button>}
+        <button onClick={() => onUpdate(order.id, 'cancelled', order.total_amount)} className="px-3 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-bold py-1.5 rounded transition">Cancel</button>
       </div>
     </div>
   );

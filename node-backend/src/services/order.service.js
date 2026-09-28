@@ -190,6 +190,31 @@ const updateStatus = async (orderId, newStatus) => {
     throw err;
   }
 
+  if (newStatus === 'cancelled') {
+    await sequelize.transaction(async (t) => {
+      const student = await Student.findByPk(order.student_id, { lock: true, transaction: t });
+      if (student) {
+        const newBalance = parseFloat(student.wallet_balance || 0) + parseFloat(order.total_amount || 0);
+        await student.update({ wallet_balance: newBalance }, { transaction: t });
+
+        await WalletTransaction.create({
+          student_id:    order.student_id,
+          type:          'credit',
+          amount:        parseFloat(order.total_amount),
+          balance_after: newBalance,
+          ref_id:        String(orderId),
+          description:   `Refund: Order #${orderId} cancelled by canteen staff`,
+        }, { transaction: t });
+      }
+
+      order.status        = 'cancelled';
+      order.cancelled_at  = new Date();
+      order.cancel_reason = 'Cancelled by canteen staff / admin';
+      await order.save({ transaction: t });
+    });
+    return order;
+  }
+
   order.status = newStatus;
   await order.save();
   return order;

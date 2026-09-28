@@ -364,7 +364,7 @@ export const apiStoreOrder = async (orderPayload) => {
     
     const nodePayload = {
       items,
-      note: 'Pre-order via Canteen App',
+      note: orderPayload.note || orderPayload.user_address || 'Pre-order via Canteen App',
       pickupTime: new Date(Date.now() + 3600000).toISOString() // 1 hour from now as fallback
     };
 

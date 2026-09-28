@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, hasPermission } from '@/lib/auth';
 import { connectDB } from '@/config/database';
-import { uploadMenuImage } from '@/lib/cloudinary';
+import { uploadImage } from '@/lib/cloudinary';
 import fs from 'fs';
 import path from 'path';
 
@@ -110,8 +110,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    if (!session || session.role === 'staff') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'banner')) {
+      return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
     }
 
     const formData = await req.formData();
@@ -161,7 +161,7 @@ export async function POST(req: Request) {
     if (file && file.size > 0) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const imageUrl = await uploadMenuImage(buffer, file.name);
+      const imageUrl = await uploadImage(buffer, file.name, 'nutricanteen/banners');
 
       let createdId = Date.now().toString();
 

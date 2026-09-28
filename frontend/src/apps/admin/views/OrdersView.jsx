@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../services/adminApi';
-import { useCanteen } from '../../../context/CanteenContext';
+import { useCanteen } from '../../../context/useCanteen';
 import { RefreshCw, CheckCircle, Clock, Package } from 'lucide-react';
 
 export default function OrdersView() {

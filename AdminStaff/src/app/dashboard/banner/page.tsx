@@ -540,7 +540,7 @@ export default function BannerManagementPage() {
                   <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xs">🍲</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-bold text-gray-800 truncate">Paneer Kathi Roll</p>
-                    <p className="text-[9px] text-gray-400">₹65 • Campus Fresh</p>
+                    <p className="text-[9px] text-gray-400">₹65</p>
                   </div>
                 </div>
               </div>

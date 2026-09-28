@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, hasPermission } from '@/lib/auth';
 import { connectDB } from '@/config/database';
 const { Order, OrderItem, MenuItem, Student } = require('@/models');
 
 export async function GET(req: Request) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'orders')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     await connectDB();
     

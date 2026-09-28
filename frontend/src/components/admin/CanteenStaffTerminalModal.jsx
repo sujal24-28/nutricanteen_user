@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
-import { useCanteen } from '../../context/CanteenContext';
-import { CLASSES_LIST, SECTIONS_LIST, SAMPLE_STUDENTS_REGISTRY } from '../../data/schools';
+import { useCanteen } from '../../context/useCanteen';
+import { CLASSES_LIST, SECTIONS_LIST } from '../../data/schools';
 import { X, Search, Store, Wallet, CheckCircle2, AlertCircle, ShoppingBag, ArrowRight, UserCheck, Utensils, Receipt } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-const COUNTER_SNACKS = [
-  { id: 'cs1', name: 'Veg Cheese Puff', price: 40 },
-  { id: 'cs2', name: 'Cold Cocoa (250ml)', price: 45 },
-  { id: 'cs3', name: 'Air-Baked Samosa', price: 30 },
-  { id: 'cs4', name: 'Whole Wheat Muffin', price: 40 },
-  { id: 'cs5', name: 'Grilled Sandwich', price: 55 },
-  { id: 'cs6', name: 'Mango Lassi', price: 45 },
-];
+
 
 export const CanteenStaffTerminalModal = () => {
   const {
@@ -21,7 +14,8 @@ export const CanteenStaffTerminalModal = () => {
     walletBalance,
     orders,
     staffDeductStudentWallet,
-    staffMarkOrderCollected
+    staffMarkOrderCollected,
+    liveMenuItems
   } = useCanteen();
 
   // Search criteria
@@ -45,12 +39,7 @@ export const CanteenStaffTerminalModal = () => {
 
   const foundRegistryStudent = isLookingAtCurrentLoggedIn
     ? { ...student, walletBalance }
-    : SAMPLE_STUDENTS_REGISTRY.find(
-        (s) =>
-          s.rollNo.toString().trim() === searchRoll.toString().trim() &&
-          s.className.toLowerCase().includes(selectedClass.toLowerCase()) &&
-          s.section.toUpperCase() === selectedSection.toUpperCase()
-      );
+    : null; // No hardcoded registry — only the logged-in student's data is available
 
   // Toggle item in counter selection
   const handleToggleItem = (item) => {
@@ -294,7 +283,7 @@ export const CanteenStaffTerminalModal = () => {
 
               {/* Quick Snacks Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {COUNTER_SNACKS.map((snack) => {
+                {liveMenuItems.map((snack) => {
                   const isSelected = selectedItems.some((x) => x.id === snack.id);
                   return (
                     <button

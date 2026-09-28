@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { SAMPLE_STUDENTS_REGISTRY } from '../data/schools';
-import { CANTEEN_MENU_ITEMS } from '../data/canteenMenu';
 import {
   checkBackendHealth,
   apiSendOtp,
@@ -28,14 +26,14 @@ import {
   getStoredToken,
   getApiBase
 } from '../services/api';
-
-const CanteenContext = createContext();
+import { CanteenContext } from './useCanteen';
 
 const STORAGE_KEY_STUDENT = 'nutricanteen_student_v2';
 const STORAGE_KEY_ADMIN = 'nutricanteen_admin_v2';
 const STORAGE_KEY_WALLET = 'nutricanteen_wallet_v2';
 const STORAGE_KEY_ORDERS = 'nutricanteen_orders_v2';
 const STORAGE_KEY_TRANSACTIONS = 'nutricanteen_transactions_v2';
+const STORAGE_KEY_ADDRESSES = 'nutricanteen_addresses_v2';
 
 export const CanteenProvider = ({ children }) => {
   // Backend connection status
@@ -118,7 +116,23 @@ export const CanteenProvider = ({ children }) => {
     return [];
   });
 
-  // 6. Navigation and Modals
+  // 6. Multi-Address State
+  const [addresses, setAddresses] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_ADDRESSES);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const [selectedAddressId, setSelectedAddressId] = useState(() => {
+    return addresses.length > 0 ? addresses[0].id : null;
+  });
+
+  // 7. Navigation and Modals
   const [activeTab, setActiveTab] = useState('menu'); // 'menu' | 'orders' | 'wallet' | 'studentId'
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -159,34 +173,61 @@ export const CanteenProvider = ({ children }) => {
     localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
   }, [transactions]);
 
+  // Ensure default address exists if student is logged in and no address yet
+  useEffect(() => {
+    if (student) {
+      setAddresses((prev) => {
+        if (prev && prev.length > 0) return prev;
+        const initial = {
+          id: 'addr_' + Date.now(),
+          studentName: student.name || 'Student',
+          schoolName: student.schoolName || 'Campus School',
+          className: (student.className || '10').replace('Class ', '').trim(),
+          section: (student.section || 'A').toUpperCase().trim(),
+          rollNo: (student.rollNo || '1').toString().trim()
+        };
+        setSelectedAddressId(initial.id);
+        return [initial];
+      });
+    }
+  }, [student]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_ADDRESSES, JSON.stringify(addresses));
+    if (addresses.length > 0 && (!selectedAddressId || !addresses.some((a) => a.id === selectedAddressId))) {
+      setSelectedAddressId(addresses[0].id);
+    }
+  }, [addresses, selectedAddressId]);
+
   const liveMenuItems = React.useMemo(() => {
     if (backendProducts && backendProducts.length > 0) {
       return backendProducts.map((bp) => {
         return {
           id: bp.id.toString(),
           backendId: bp.id,
-          name: bp.name,
+          name: bp.name ? bp.name.trim().charAt(0).toUpperCase() + bp.name.trim().slice(1) : '',
           category: (bp.category || 'lunch').toLowerCase(),
           price: Number(bp.price) || 0,
-          originalPrice: (Number(bp.price) || 0) + 10,
-          mrp: (Number(bp.price) || 0) + 10,
+          mrp: bp.mrp ? Number(bp.mrp) : null,
+          originalPrice: bp.mrp ? Number(bp.mrp) : Number(bp.price) || 0,
           description: bp.description || 'Nutritious canteen meal prepared fresh daily.',
           image: bp.image_url 
             ? (bp.image_url.startsWith('http') ? bp.image_url : getApiBase().replace('/api/v1', '') + bp.image_url) 
             : null,
-          calories: '260 kcal',
+          calories: bp.calories || '',
           prepTime: 'Instant / Fresh',
-          isVeg: true,
+          food_type: bp.food_type || 'veg',
+          isVeg: (bp.food_type || 'veg').toLowerCase() === 'veg',
           isChefSpecial: true,
-          dietaryTag: 'Campus Fresh',
+          dietaryTag: '',
           availableSlots: ['recess', 'lunch'],
           rating: 4.9,
           isLiveBackend: true
         };
       });
     }
-    // Return CANTEEN_MENU_ITEMS fallback when backend is unavailable or empty
-    return CANTEEN_MENU_ITEMS;
+    // No hardcoded fallback — show empty state when backend is unavailable
+    return [];
   }, [backendProducts]);
 
   // Synchronize state with Laravel Backend
@@ -417,7 +458,47 @@ export const CanteenProvider = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * item.quantity, 0);
+  const cartMrpTotal = cart.reduce((sum, item) => {
+    const unitMrp = Number(item.mrp) || Number(item.originalPrice) || Number(item.price) || 0;
+    return sum + unitMrp * item.quantity;
+  }, 0);
+  const cartDiscountTotal = Math.max(0, cartMrpTotal - cartTotal);
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Address Helper Actions
+  const addAddress = (addr) => {
+    const newAddr = {
+      id: 'addr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      studentName: (addr.studentName || student?.name || 'Student').trim(),
+      schoolName: (addr.schoolName || student?.schoolName || 'Campus School').trim(),
+      className: (addr.className || '10').replace('Class ', '').trim(),
+      section: (addr.section || 'A').toUpperCase().trim(),
+      rollNo: (addr.rollNo || '1').toString().trim()
+    };
+    setAddresses((prev) => [newAddr, ...prev]);
+    setSelectedAddressId(newAddr.id);
+    showToast('Address Added 📍', `Added address for ${newAddr.studentName}.`);
+    return newAddr;
+  };
+
+  const updateAddress = (id, updatedFields) => {
+    setAddresses((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...updatedFields } : a))
+    );
+    showToast('Address Updated ✏️', 'Delivery address details updated successfully.');
+  };
+
+  const deleteAddress = (id) => {
+    setAddresses((prev) => {
+      const remaining = prev.filter((a) => a.id !== id);
+      if (selectedAddressId === id && remaining.length > 0) {
+        setSelectedAddressId(remaining[0].id);
+      }
+      return remaining;
+    });
+    showToast('Address Removed', 'The address has been removed.');
+  };
 
   // Wallet Recharge Action with Razorpay
   const rechargeWallet = async (amount, paymentMethod = 'Razorpay') => {
@@ -503,7 +584,7 @@ export const CanteenProvider = ({ children }) => {
 
 
   // Pre-Order Checkout (Strictly Wallet-Only) with Live Backend API call
-  const placePreOrder = async () => {
+  const placePreOrder = async (overrideAddress = null) => {
     if (cart.length === 0) return false;
 
     if (walletBalance < cartTotal) {
@@ -511,6 +592,16 @@ export const CanteenProvider = ({ children }) => {
       setIsRechargeOpen(true);
       return false;
     }
+
+    const currentAddr = overrideAddress || addresses.find((a) => a.id === selectedAddressId) || addresses[0] || {
+      studentName: student?.name || 'Student',
+      schoolName: student?.schoolName || 'Campus School',
+      className: (student?.className || '10').replace('Class ', '').trim(),
+      section: student?.section || 'A',
+      rollNo: student?.rollNo || '1'
+    };
+
+    const addressText = `School: ${currentAddr.schoolName || 'Campus'} | Class: ${currentAddr.className || ''} | Sec: ${currentAddr.section || ''} | Roll: ${currentAddr.rollNo || ''} | Name: ${currentAddr.studentName || student?.name || ''}`;
 
     const orderTotal = cartTotal;
     let orderId = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -530,7 +621,9 @@ export const CanteenProvider = ({ children }) => {
           coupon_code: '',
           coupon_discount: 0,
           grand_amount: orderTotal,
-          user_address: `Class ${student.className}-${student.section}, Roll #${student.rollNo} (${student.schoolName || 'Campus'})`,
+          user_address: addressText,
+          note: addressText,
+          delivery_address: currentAddr,
           payment_status: 'paid'
         };
 
@@ -553,7 +646,9 @@ export const CanteenProvider = ({ children }) => {
       preOrderDate: preOrderDateLabel,
       breakSlot: breakSlot === 'recess' ? 'Morning Recess (10:30 AM)' : 'Lunch Break (1:15 PM)',
       status: 'Scheduled',
-      pickupNote: `Student: ${student.name} (${student.className}-${student.section}, Roll #${student.rollNo})`,
+      pickupNote: `${currentAddr.studentName} (${currentAddr.schoolName || 'Campus'}, Class ${currentAddr.className}-${currentAddr.section}, Roll #${currentAddr.rollNo})`,
+      deliveryAddress: currentAddr,
+      note: addressText,
       createdAt: 'Just now'
     };
 
@@ -621,22 +716,7 @@ export const CanteenProvider = ({ children }) => {
       showToast('Counter Deduction Successful', `Deducted ₹${amount} for ${itemName}. Remaining Wallet: ₹${walletBalance - amount}`);
       return { success: true, remaining: walletBalance - amount, studentName: student.name };
     } else {
-      const found = SAMPLE_STUDENTS_REGISTRY.find(
-        (s) =>
-          s.rollNo.toString().trim() === targetRollNo.toString().trim() &&
-          s.className.toLowerCase().includes(targetClass.toLowerCase()) &&
-          s.section.toUpperCase() === targetSec.toUpperCase()
-      );
-
-      if (found) {
-        if (found.walletBalance < amount) {
-          return { success: false, message: `Insufficient balance! ${found.name} has only ₹${found.walletBalance}.` };
-        }
-        found.walletBalance -= amount;
-        return { success: true, remaining: found.walletBalance, studentName: found.name };
-      }
-
-      return { success: false, message: 'Student record not found for this Class, Section and Roll No.' };
+      return { success: false, message: 'Student not logged in. Cannot deduct wallet for other students from the frontend.' };
     }
   };
 
@@ -902,9 +982,21 @@ export const CanteenProvider = ({ children }) => {
         updateQuantity,
         clearCart,
         cartTotal,
+        cartMrpTotal,
+        cartDiscountTotal,
+        cartItemCount,
         isCartOpen,
         setIsCartOpen,
         placePreOrder,
+
+        // Multi-Address Management
+        addresses,
+        setAddresses,
+        selectedAddressId,
+        setSelectedAddressId,
+        addAddress,
+        updateAddress,
+        deleteAddress,
 
         // Orders
         orders,
@@ -936,4 +1028,4 @@ export const CanteenProvider = ({ children }) => {
   );
 };
 
-export const useCanteen = () => useContext(CanteenContext);
+export default CanteenProvider;

@@ -157,18 +157,21 @@ const getDashboard = async () => {
     totalOrders,
     pendingOrders,
     totalRevenue,
+    totalRemainingWallet,
   ] = await Promise.all([
     Student.count(),
     Order.count(),
     Order.count({ where: { status: ['pending', 'confirmed'] } }),
     WalletTransaction.sum('amount', { where: { type: 'debit' } }),
+    Student.sum('wallet_balance'),
   ]);
 
   return {
-    total_students:  totalStudents,
-    total_orders:    totalOrders,
-    pending_orders:  pendingOrders,
-    total_revenue:   parseFloat(totalRevenue || 0),
+    total_students:         totalStudents,
+    total_orders:           totalOrders,
+    pending_orders:         pendingOrders,
+    total_revenue:          parseFloat(totalRevenue || 0),
+    total_remaining_wallet: parseFloat(totalRemainingWallet || 0),
   };
 };
 

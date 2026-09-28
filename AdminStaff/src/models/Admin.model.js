@@ -31,6 +31,29 @@ const Admin = sequelize.define('Admin', {
     type:         DataTypes.ENUM('superadmin', 'staff'),
     defaultValue: 'staff',
   },
+  permissions: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const raw = this.getDataValue('permissions');
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return typeof raw === 'string' ? raw.split(',').map((s) => s.trim()).filter(Boolean) : [];
+      }
+    },
+    set(val) {
+      if (Array.isArray(val)) {
+        this.setDataValue('permissions', JSON.stringify(val));
+      } else if (typeof val === 'string') {
+        this.setDataValue('permissions', val);
+      } else {
+        this.setDataValue('permissions', null);
+      }
+    }
+  },
   is_active: {
     type:         DataTypes.BOOLEAN,
     defaultValue: true,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCanteen } from '../../context/CanteenContext';
+import { useCanteen } from '../../context/useCanteen';
 import { UtensilsCrossed, CalendarCheck, Wallet, Settings, ArrowRight } from 'lucide-react';
 
 export const BottomNav = ({ onSettingsOpen }) => {

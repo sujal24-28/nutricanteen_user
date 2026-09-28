@@ -18,7 +18,9 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Flame,
-  PieChart
+  PieChart,
+  Coins,
+  Building2
 } from 'lucide-react';
 import GrowthCharts from '@/components/dashboard/GrowthCharts';
 
@@ -62,6 +64,15 @@ export default function DashboardPage() {
   const recharges = data?.recharges || {};
   const students = data?.students || {};
   const schools = data?.schools || {};
+  const studentWallets = data?.studentWallets || {
+    totalRemaining: Number(data?.students?.totalRemainingAmount || 0),
+    avgBalance: 0,
+    studentsWithBalance: 0,
+    studentsZeroBalance: 0,
+    maxBalance: 0,
+    topStudents: [],
+    bySchool: []
+  };
   const itemsByTime = data?.items?.[itemTimeframe] || { mostOrdered: null, leastOrdered: null, all: [] };
   const mostOrdered: MetricItem | null = itemsByTime.mostOrdered;
   const leastOrdered: MetricItem | null = itemsByTime.leastOrdered;
@@ -217,6 +228,13 @@ export default function DashboardPage() {
                   <span className="text-[10px] text-gray-400">Total credited</span>
                 </div>
               </div>
+
+              <div className="pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
+                <span className="text-gray-500">Total Remaining in Wallets:</span>
+                <span className="font-extrabold text-emerald-700 text-sm">
+                  ₹{studentWallets.totalRemaining?.toFixed(2) || '0.00'}
+                </span>
+              </div>
             </div>
 
             {/* Students Enrolled Breakdown */}
@@ -285,12 +303,229 @@ export default function DashboardPage() {
           </div>
 
           {/* ========================================================= */}
-          {/* SECTION 2: BUSINESS GROWTH & REVENUE CHARTS               */}
+          {/* SECTION 3: TOTAL REMAINING AMOUNT IN ALL STUDENTS (WALLETS) */}
+          {/* ========================================================= */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
+                  <Coins className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-brand-brown-dark flex items-center gap-2">
+                    Total Remaining Amount in All Students
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Live balance & unspent canteen credit currently available across all student wallets
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/dashboard/students"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 text-xs font-bold rounded-xl transition border border-emerald-200/80 shadow-2xs"
+              >
+                <span>Manage Students & Wallets</span>
+                <ArrowRight size={13} />
+              </Link>
+            </div>
+
+            {/* Grid of Main Hero Card & Breakdown */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              {/* Grand Total Hero Card (5 columns) */}
+              <div className="lg:col-span-5 bg-gradient-to-br from-emerald-800 via-teal-800 to-emerald-950 text-white p-6 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 right-0 w-44 h-44 bg-white/10 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-xl -ml-8 -mb-8 pointer-events-none" />
+
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200 bg-emerald-900/70 px-3 py-1 rounded-full border border-emerald-500/30">
+                      Total Remaining Funds
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-100 bg-white/10 px-2.5 py-0.5 rounded-full">
+                      <CheckCircle size={12} className="text-emerald-300" />
+                      Live Balance
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-emerald-100/90 font-medium">
+                    Grand Total Balance in All Student Wallets:
+                  </p>
+
+                  <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1.5">
+                    ₹{studentWallets.totalRemaining?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </div>
+
+                  <p className="text-xs text-emerald-100/80 mt-2 leading-relaxed">
+                    Total unspent cash held in student canteen accounts, available for meal pre-orders and counter checkout.
+                  </p>
+                </div>
+
+                <div className="relative z-10 mt-6 pt-4 border-t border-emerald-600/50 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-emerald-200/80 block text-[11px]">Avg / Student:</span>
+                    <strong className="text-white font-bold text-sm">
+                      ₹{studentWallets.avgBalance?.toFixed(2) || '0.00'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-emerald-200/80 block text-[11px]">Funded Wallets:</span>
+                    <strong className="text-white font-bold text-sm">
+                      {studentWallets.studentsWithBalance || 0}
+                      <span className="text-emerald-200 text-xs font-normal"> / {students.total || 0}</span>
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Metric Cards + Top Students & Schools (7 columns) */}
+              <div className="lg:col-span-7 flex flex-col gap-4">
+                {/* 3 Metrics Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Card 1: Students with Balance */}
+                  <div className="bg-emerald-50/70 border border-emerald-100 p-4 rounded-xl flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-emerald-900 font-bold mb-1">
+                        <span>Students with Balance</span>
+                        <Users size={15} className="text-emerald-600" />
+                      </div>
+                      <div className="text-2xl font-extrabold text-emerald-900 mt-2">
+                        {studentWallets.studentsWithBalance || 0}
+                      </div>
+                      <p className="text-[11px] text-emerald-700 mt-0.5">
+                        Active funded wallets
+                      </p>
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-emerald-200/60 text-[11px] text-emerald-800 font-semibold">
+                      {students.total > 0
+                        ? `${Math.round(((studentWallets.studentsWithBalance || 0) / students.total) * 100)}% of total students`
+                        : '0%'}
+                    </div>
+                  </div>
+
+                  {/* Card 2: Average Wallet Balance */}
+                  <div className="bg-blue-50/70 border border-blue-100 p-4 rounded-xl flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-blue-900 font-bold mb-1">
+                        <span>Average Balance</span>
+                        <TrendingUp size={15} className="text-blue-600" />
+                      </div>
+                      <div className="text-2xl font-extrabold text-blue-900 mt-2">
+                        ₹{studentWallets.avgBalance?.toFixed(1) || '0.0'}
+                      </div>
+                      <p className="text-[11px] text-blue-700 mt-0.5">
+                        Per registered student
+                      </p>
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-blue-200/60 text-[11px] text-blue-800 font-semibold truncate">
+                      Peak: ₹{studentWallets.maxBalance?.toFixed(0) || '0'}
+                    </div>
+                  </div>
+
+                  {/* Card 3: Zero Balance Wallets */}
+                  <div className="bg-amber-50/70 border border-amber-100 p-4 rounded-xl flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-amber-900 font-bold mb-1">
+                        <span>Zero Balance</span>
+                        <AlertTriangle size={15} className="text-amber-600" />
+                      </div>
+                      <div className="text-2xl font-extrabold text-amber-900 mt-2">
+                        {studentWallets.studentsZeroBalance || 0}
+                      </div>
+                      <p className="text-[11px] text-amber-700 mt-0.5">
+                        Wallets empty (₹0.00)
+                      </p>
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-amber-200/60 text-[11px] text-amber-800 font-semibold">
+                      {students.total > 0
+                        ? `${Math.round(((studentWallets.studentsZeroBalance || 0) / students.total) * 100)}% need recharge`
+                        : '0%'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Students by Remaining Balance */}
+                <div className="bg-gray-50/70 border border-gray-100 rounded-xl p-4 flex-1 flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                      <Wallet size={14} className="text-brand-gold-dark" />
+                      Top Students by Remaining Balance
+                    </h4>
+                    <Link
+                      href="/dashboard/students"
+                      className="text-[11px] text-brand-brown-dark hover:underline font-bold"
+                    >
+                      View All
+                    </Link>
+                  </div>
+
+                  {studentWallets.topStudents && studentWallets.topStudents.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
+                      {studentWallets.topStudents.map((st: any, idx: number) => (
+                        <div
+                          key={st.id || idx}
+                          className="bg-white p-2.5 rounded-lg border border-gray-200/80 shadow-2xs flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-1 mb-1">
+                              <span className="text-[10px] font-extrabold text-brand-gold-dark bg-amber-50 px-1.5 py-0.5 rounded">
+                                #{idx + 1}
+                              </span>
+                              <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                ₹{Number(st.wallet_balance || 0).toFixed(0)}
+                              </span>
+                            </div>
+                            <p className="text-xs font-bold text-gray-900 truncate" title={st.name}>
+                              {st.name}
+                            </p>
+                            <p className="text-[10px] text-gray-500 truncate">
+                              {st.class}-{st.section} • Roll #{st.roll}
+                            </p>
+                          </div>
+                          <p className="text-[9px] text-gray-400 mt-1 truncate border-t border-gray-50 pt-1">
+                            {st.school_name || 'Campus'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-xs text-gray-400">
+                      No active student wallet balances recorded yet.
+                    </div>
+                  )}
+
+                  {/* Branch balance breakdown pill bar if schools exist */}
+                  {studentWallets.bySchool && studentWallets.bySchool.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200/60 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                        By Branch:
+                      </span>
+                      {studentWallets.bySchool.map((sc: any, idx: number) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-gray-200 text-gray-700 text-xs font-medium"
+                        >
+                          <Building2 size={12} className="text-purple-600" />
+                          <span className="font-semibold text-gray-800">{sc.school_name}:</span>
+                          <span className="font-bold text-emerald-700">₹{Number(sc.remaining_amount || 0).toFixed(0)}</span>
+                          <span className="text-[10px] text-gray-400">({sc.total_students} stu)</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================= */}
+          {/* SECTION 4: BUSINESS GROWTH & REVENUE CHARTS               */}
           {/* ========================================================= */}
           <GrowthCharts charts={data?.charts} loading={loading} />
 
           {/* ========================================================= */}
-          {/* SECTION 3: PRODUCT ITEM ANALYTICS (MOST & LEAST ORDERED)   */}
+          {/* SECTION 5: PRODUCT ITEM ANALYTICS (MOST & LEAST ORDERED)   */}
           {/* ========================================================= */}
           <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-100 pb-4">
@@ -610,6 +845,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-// React Building2 helper import
-import { Building2 } from 'lucide-react';

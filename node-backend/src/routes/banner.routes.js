@@ -6,6 +6,7 @@ const path = require('path');
 const { upload } = require('../middlewares/upload.middleware');
 const { Banner } = require('../models');
 const logger = require('../utils/logger.util');
+const { uploadToCloudinary } = require('../utils/cloudinary.util');
 
 const CONFIG_PATH = path.join(__dirname, '..', '..', 'uploads', 'banner_config.json');
 
@@ -170,9 +171,10 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     // Case 3: Upload a new banner slide
     if (req.file) {
+      const bannerImageUrl = await uploadToCloudinary(req.file, 'nutricanteen/banners');
       const newBanner = {
         id: Date.now().toString(),
-        imageUrl: `/uploads/${req.file.filename}`,
+        imageUrl: bannerImageUrl,
         title: title || 'Fresh & Nutritious Meals',
         subtitle: subtitle || 'Hygienic and wholesome food prepared fresh daily!',
       };

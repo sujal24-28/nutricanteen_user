@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCanteen } from '../../context/CanteenContext';
+import { useCanteen } from '../../context/useCanteen';
 import { X, Calendar, Clock, AlertCircle, Sun, Soup, Check } from 'lucide-react';
 
 export const PreOrderScheduleModal = () => {

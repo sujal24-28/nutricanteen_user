@@ -1,7 +1,19 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Download, Calendar, Filter } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  RefreshCw,
+  Download,
+  Calendar,
+  Filter,
+  ShoppingBag,
+  TrendingUp,
+  Users,
+  Clock,
+  ArrowRight,
+  Layers,
+  ChevronDown
+} from 'lucide-react';
 
 interface OrderItem {
   id: number | string;
@@ -31,29 +43,57 @@ interface AvailableDate {
   count: number;
 }
 
-const getLocalToday = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+const formatDateToInput = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
+const getLocalToday = () => formatDateToInput(new Date());
+
+const getPastDate = (daysAgo: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return formatDateToInput(d);
+};
+
+const getStartOfMonth = () => {
+  const now = new Date();
+  return formatDateToInput(new Date(now.getFullYear(), now.getMonth(), 1));
+};
+
 export default function OrderSheetPage() {
-  const [date, setDate] = useState<string>(getLocalToday);
-  const [isAllDates, setIsAllDates] = useState(false);
+  // Filter mode: 'preset' | 'range' | 'single' | 'all'
+  const [filterMode, setFilterMode] = useState<'today' | 'yesterday' | 'last7' | 'thisMonth' | 'last30' | 'range' | 'all'>('last7');
+  const [startDate, setStartDate] = useState<string>(() => getPastDate(6));
+  const [endDate, setEndDate] = useState<string>(getLocalToday);
+  const [singleDate, setSingleDate] = useState<string>(getLocalToday);
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [availableDates, setAvailableDates] = useState<AvailableDate[]>([]);
   const [loading, setLoading] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const fetchOrders = async (targetDate: string, showAll: boolean) => {
+  // Fetch orders based on active filter
+  const fetchOrders = async () => {
     setLoading(true);
     try {
-      const queryParam = showAll ? 'all' : targetDate;
-      const res = await fetch(`/api/orders/sheet?date=${queryParam}&t=${Date.now()}`, {
-        cache: 'no-store',
-      });
+      let queryUrl = `/api/orders/sheet?t=${Date.now()}`;
+
+      if (filterMode === 'all') {
+        queryUrl += '&date=all';
+      } else if (filterMode === 'today') {
+        queryUrl += `&date=${getLocalToday()}`;
+      } else if (filterMode === 'yesterday') {
+        queryUrl += `&date=${getPastDate(1)}`;
+      } else if (filterMode === 'range' || filterMode === 'last7' || filterMode === 'thisMonth' || filterMode === 'last30') {
+        queryUrl += `&startDate=${startDate}&endDate=${endDate}`;
+      } else {
+        queryUrl += `&date=${singleDate}`;
+      }
+
+      const res = await fetch(queryUrl, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -72,20 +112,57 @@ export default function OrderSheetPage() {
     }
   };
 
-  useEffect(() => {
-    fetchOrders(date, isAllDates);
-  }, [date, isAllDates]);
+  // Preset Handlers
+  const handleSelectPreset = (preset: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'last30' | 'range' | 'all') => {
+    setFilterMode(preset);
+    const today = getLocalToday();
 
-  const grandTotal = orders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-
-  const formatDisplayDate = (dStr: string) => {
-    if (isAllDates) return 'All Recorded Dates';
-    try {
-      const [y, m, d] = dStr.split('-');
-      return `${d}/${m}/${y}`;
-    } catch {
-      return dStr;
+    if (preset === 'today') {
+      setStartDate(today);
+      setEndDate(today);
+      setSingleDate(today);
+    } else if (preset === 'yesterday') {
+      const yest = getPastDate(1);
+      setStartDate(yest);
+      setEndDate(yest);
+      setSingleDate(yest);
+    } else if (preset === 'last7') {
+      setStartDate(getPastDate(6));
+      setEndDate(today);
+    } else if (preset === 'thisMonth') {
+      setStartDate(getStartOfMonth());
+      setEndDate(today);
+    } else if (preset === 'last30') {
+      setStartDate(getPastDate(29));
+      setEndDate(today);
     }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [filterMode, startDate, endDate, singleDate]);
+
+  // Derived summaries
+  const grandTotal = useMemo(() => orders.reduce((s, o) => s + Number(o.total_amount || 0), 0), [orders]);
+  const uniqueStudents = useMemo(() => new Set(orders.map((o) => o.student?.name || o.student?.roll)).size, [orders]);
+
+  // Orders breakdown by day in the current selection
+  const ordersByDay = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const o of orders) {
+      const d = o.dateDisplay || 'Unknown';
+      map[d] = (map[d] || 0) + 1;
+    }
+    return Object.entries(map).map(([day, count]) => ({ day, count }));
+  }, [orders]);
+
+  // Human-readable active date range label
+  const formatRangeLabel = () => {
+    if (filterMode === 'all') return 'All Recorded Dates';
+    if (filterMode === 'today') return `Today (${getLocalToday()})`;
+    if (filterMode === 'yesterday') return `Yesterday (${getPastDate(1)})`;
+    if (startDate === endDate) return startDate;
+    return `${startDate} to ${endDate}`;
   };
 
   const handleDownloadPDF = () => {
@@ -95,22 +172,26 @@ export default function OrderSheetPage() {
     const win = window.open('', '_blank');
     if (!win) return;
 
+    const rangeLabel = formatRangeLabel();
+
     win.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>MAPSTREAK - Daily Order Sheet</title>
+        <title>MAPSTREAK - Order Sheet (${rangeLabel})</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 11px; color: #000; padding: 25px 20px; }
-          .sheet-title { font-size: 15px; font-weight: 800; text-align: center; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
+          .sheet-title { font-size: 16px; font-weight: 800; text-align: center; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+          .sheet-subtitle { font-size: 11px; font-weight: 600; text-align: center; color: #444; margin-bottom: 12px; }
+          .metrics-bar { display: flex; justify-content: space-around; background: #f4f4f4; border: 1px solid #ccc; padding: 6px 12px; margin-bottom: 12px; border-radius: 4px; font-weight: 700; font-size: 11px; }
           table { width: 100%; border-collapse: collapse; margin-top: 5px; }
           th, td { border: 1px solid #111; padding: 5px 6px; font-size: 10.5px; }
-          th { font-weight: 700; text-align: left; background-color: #fff; }
+          th { font-weight: 700; text-align: left; background-color: #f0f0f0; }
           .text-center { text-align: center; }
           .text-right { text-align: right; }
           .font-bold { font-weight: bold; }
-          .total-box { font-weight: 800; }
+          .total-box { font-weight: 800; background-color: #fbfbfb; }
           @media print {
             body { padding: 10px; }
             @page { margin: 10mm; size: auto; }
@@ -118,7 +199,13 @@ export default function OrderSheetPage() {
         </style>
       </head>
       <body>
-        <div class="sheet-title">MAPSTREAK - Daily Order Sheet</div>
+        <div class="sheet-title">MAPSTREAK - Order Sheet</div>
+        <div class="sheet-subtitle">Date Range: ${rangeLabel}</div>
+        <div class="metrics-bar">
+          <span>Total Orders: ${orders.length}</span>
+          <span>Students Served: ${uniqueStudents}</span>
+          <span>Grand Total: ₹ ${grandTotal.toFixed(0)}</span>
+        </div>
         ${printContent.innerHTML}
         <script>
           window.onload = function() {
@@ -134,141 +221,270 @@ export default function OrderSheetPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
-      {/* Top Controls */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Daily Order Sheet
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            View, filter, and print student-wise order sheets
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Quick toggle: Today vs All */}
-          <div className="flex items-center bg-gray-100 p-1 rounded-lg text-xs font-semibold text-gray-700">
-            <button
-              onClick={() => {
-                setIsAllDates(false);
-                setDate(getLocalToday());
-              }}
-              className={`px-3 py-1.5 rounded-md transition ${
-                !isAllDates && date === getLocalToday()
-                  ? 'bg-white shadow-sm text-indigo-600'
-                  : 'hover:text-gray-900'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setIsAllDates(true)}
-              className={`px-3 py-1.5 rounded-md transition ${
-                isAllDates
-                  ? 'bg-white shadow-sm text-indigo-600'
-                  : 'hover:text-gray-900'
-              }`}
-            >
-              All Dates
-            </button>
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      {/* ======================================================= */}
+      {/* 1. TOP HEADER & FILTER CONTROLS                         */}
+      {/* ======================================================= */}
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-100">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Filter className="w-6 h-6 text-indigo-600" />
+              Order Sheet & Range Analytics
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Filter by date range to inspect incoming order volume, student demand, and export sheets
+            </p>
           </div>
 
-          {/* Date Picker */}
-          {!isAllDates && (
-            <div className="relative flex items-center">
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => {
-                  setDate(e.target.value);
-                  setIsAllDates(false);
-                }}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchOrders}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
+              title="Refresh Orders"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin text-indigo-600' : ''} />
+              <span>Refresh</span>
+            </button>
+
+            <button
+              onClick={handleDownloadPDF}
+              disabled={orders.length === 0}
+              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition disabled:opacity-40 cursor-pointer"
+              title="Print or Save PDF"
+            >
+              <Download size={14} />
+              <span>Print / Download PDF</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Range Preset Buttons */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide mr-2 flex items-center gap-1">
+              <Calendar size={13} /> Filter:
+            </span>
+
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'yesterday', label: 'Yesterday' },
+              { id: 'last7', label: 'Last 7 Days' },
+              { id: 'thisMonth', label: 'This Month' },
+              { id: 'last30', label: 'Last 30 Days' },
+              { id: 'range', label: 'Custom Range 📅' },
+              { id: 'all', label: 'All Dates' },
+            ].map((p) => {
+              const active = filterMode === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelectPreset(p.id as any)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    active
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Date Range Inputs Box (Shown whenever in range mode or custom range) */}
+          {filterMode !== 'all' && (
+            <div className="flex flex-wrap items-center gap-3 pt-2 bg-gray-50/80 p-3 rounded-xl border border-gray-200/70 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-700">From Date:</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  max={endDate || getLocalToday()}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setFilterMode('range');
+                  }}
+                  className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-700">To Date:</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate}
+                  max={getLocalToday()}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setFilterMode('range');
+                  }}
+                  className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              {availableDates.length > 0 && (
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <span className="text-gray-500 font-medium">Quick Jump:</span>
+                  <select
+                    value={startDate === endDate ? startDate : ''}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      setStartDate(selected);
+                      setEndDate(selected);
+                      setFilterMode('range');
+                    }}
+                    className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 bg-white focus:outline-none"
+                  >
+                    <option value="" disabled>Select active date...</option>
+                    {availableDates.map((ad) => (
+                      <option key={ad.order_date} value={ad.order_date}>
+                        {ad.order_date} ({ad.count} orders)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
-
-          {/* Available Dates Dropdown */}
-          {availableDates.length > 0 && !isAllDates && (
-            <select
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
-                setIsAllDates(false);
-              }}
-              className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 bg-white focus:outline-none"
-              title="Jump to date with orders"
-            >
-              <option value="" disabled>Jump to date...</option>
-              {availableDates.map((ad) => (
-                <option key={ad.order_date} value={ad.order_date}>
-                  {ad.order_date} ({ad.count} orders)
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Refresh Button */}
-          <button
-            onClick={() => fetchOrders(date, isAllDates)}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition disabled:opacity-50"
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-
-          {/* Download PDF Button */}
-          <button
-            onClick={handleDownloadPDF}
-            disabled={orders.length === 0}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow-sm transition disabled:opacity-40"
-          >
-            <Download size={15} />
-            Download PDF
-          </button>
         </div>
       </div>
 
-      {/* Summary Chips */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
-          <p className="text-xs text-gray-500 font-medium">Selected Date</p>
-          <p className="text-base font-bold text-gray-800 mt-0.5">{formatDisplayDate(date)}</p>
+      {/* ======================================================= */}
+      {/* 2. PROMINENT DATE RANGE ORDER COUNT & METRICS BANNER    */}
+      {/* ======================================================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Orders in Range Card (Highlighted) */}
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 text-white p-5 rounded-2xl shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-semibold text-indigo-100 uppercase tracking-wider">
+                Orders in Date Range
+              </p>
+              <h2 className="text-3xl font-extrabold mt-1 tracking-tight">
+                {orders.length} <span className="text-sm font-medium text-indigo-200">orders</span>
+              </h2>
+            </div>
+            <div className="p-2.5 bg-white/15 rounded-xl backdrop-blur-xs">
+              <ShoppingBag size={22} className="text-white" />
+            </div>
+          </div>
+          <div className="mt-3 pt-2 border-t border-white/15 flex items-center justify-between text-[11px] text-indigo-100">
+            <span>Range: {formatRangeLabel()}</span>
+          </div>
         </div>
-        <div className="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
-          <p className="text-xs text-gray-500 font-medium">Total Orders</p>
-          <p className="text-lg font-bold text-indigo-600 mt-0.5">{orders.length}</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
-          <p className="text-xs text-gray-500 font-medium">Total Students</p>
-          <p className="text-lg font-bold text-blue-600 mt-0.5">
-            {new Set(orders.map((o) => o.student?.name || o.student?.roll)).size}
+
+        {/* Selected Period Card */}
+        <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Period</p>
+              <h3 className="text-base font-extrabold text-gray-800 mt-1 line-clamp-1">
+                {formatRangeLabel()}
+              </h3>
+            </div>
+            <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+              <Calendar size={22} />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-3 pt-2 border-t border-gray-100">
+            {filterMode === 'all'
+              ? 'Showing all orders across all time'
+              : startDate === endDate
+              ? 'Single day report'
+              : `${ordersByDay.length} day(s) with order activity`}
           </p>
         </div>
-        <div className="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
-          <p className="text-xs text-gray-500 font-medium">Grand Total</p>
-          <p className="text-lg font-bold text-green-600 mt-0.5">₹{grandTotal.toFixed(0)}</p>
+
+        {/* Revenue in Range Card */}
+        <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Revenue in Range</p>
+              <h3 className="text-2xl font-extrabold text-emerald-600 mt-1">
+                ₹{grandTotal.toFixed(2)}
+              </h3>
+            </div>
+            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+              <TrendingUp size={22} />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-3 pt-2 border-t border-gray-100">
+            Avg: ₹{orders.length > 0 ? (grandTotal / orders.length).toFixed(1) : 0} per order
+          </p>
+        </div>
+
+        {/* Unique Students Served Card */}
+        <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Students Served</p>
+              <h3 className="text-2xl font-extrabold text-blue-600 mt-1">
+                {uniqueStudents} <span className="text-xs font-medium text-gray-400">students</span>
+              </h3>
+            </div>
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+              <Users size={22} />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-3 pt-2 border-t border-gray-100">
+            Unique students with orders in this range
+          </p>
         </div>
       </div>
 
-      {/* Main Order Sheet Container */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden p-4 md:p-6">
-        <div className="text-center font-extrabold text-lg text-gray-900 uppercase tracking-wide mb-4">
-          MAPSTREAK - Daily Order Sheet
+      {/* Daily Breakdown Chips (When multiple days exist in the range) */}
+      {ordersByDay.length > 1 && (
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+          <div className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Clock size={13} className="text-indigo-600" />
+            Daily Order Breakdown in Selected Range ({ordersByDay.length} Days):
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ordersByDay.map(({ day, count }) => (
+              <span
+                key={day}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50/80 border border-indigo-200/80 text-indigo-900 rounded-lg text-xs font-semibold"
+              >
+                <span>{day}:</span>
+                <span className="bg-indigo-600 text-white px-1.5 py-0.2 rounded text-[11px] font-bold">
+                  {count} {count === 1 ? 'order' : 'orders'}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================= */}
+      {/* 3. ORDER SHEET TABLE                                    */}
+      {/* ======================================================= */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden p-4 md:p-6">
+        <div className="text-center pb-4 mb-4 border-b border-gray-100">
+          <h2 className="font-extrabold text-lg text-gray-900 uppercase tracking-wide">
+            MAPSTREAK - Order Sheet
+          </h2>
+          <p className="text-xs text-gray-500 mt-0.5 font-medium">
+            Period: <span className="font-bold text-gray-700">{formatRangeLabel()}</span> · Total Orders: <span className="font-bold text-indigo-600">{orders.length}</span> · Grand Total: <span className="font-bold text-emerald-600">₹{grandTotal.toFixed(0)}</span>
+          </p>
         </div>
 
         {loading ? (
-          <div className="py-16 text-center text-gray-400">
+          <div className="py-20 text-center text-gray-400">
             <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-indigo-500" />
-            <p className="font-medium text-gray-600">Loading order sheet data...</p>
+            <p className="font-medium text-gray-600">Fetching order sheet for {formatRangeLabel()}...</p>
           </div>
         ) : orders.length === 0 ? (
-          <div className="py-16 text-center text-gray-400">
+          <div className="py-20 text-center text-gray-400">
             <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p className="text-base font-semibold text-gray-700">No orders found for {formatDisplayDate(date)}</p>
-            <p className="text-xs text-gray-400 mt-1">Try selecting another date or click &quot;All Dates&quot; above.</p>
+            <p className="text-base font-semibold text-gray-700">
+              No orders found for {formatRangeLabel()}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Try adjusting the date range or select &quot;All Dates&quot; above to view historical orders.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -335,8 +551,8 @@ export default function OrderSheetPage() {
                           </tr>
                         ))}
 
-                        {/* Order Subtotal Row (Exactly matching the format in the user photo) */}
-                        <tr className="bg-gray-50/30">
+                        {/* Order Subtotal Row */}
+                        <tr className="bg-gray-50/40 font-bold">
                           <td className="border border-gray-800 px-3 py-1.5"></td>
                           <td className="border border-gray-800 px-3 py-1.5"></td>
                           <td className="border border-gray-800 px-3 py-1.5"></td>
@@ -344,7 +560,7 @@ export default function OrderSheetPage() {
                           <td className="border border-gray-800 px-2 py-1.5"></td>
                           <td className="border border-gray-800 px-2 py-1.5"></td>
                           <td className="border border-gray-800 px-2 py-1.5"></td>
-                          <td className="border border-gray-800 px-2 py-1.5 text-center font-bold text-gray-900">
+                          <td className="border border-gray-800 px-2 py-1.5 text-center text-gray-900">
                             Total: ₹ {Number(order.total_amount).toFixed(0)}
                           </td>
                           <td className="border border-gray-800 px-2 py-1.5"></td>
@@ -361,6 +577,3 @@ export default function OrderSheetPage() {
     </div>
   );
 }
-
-// React import for React.Fragment
-import React from 'react';

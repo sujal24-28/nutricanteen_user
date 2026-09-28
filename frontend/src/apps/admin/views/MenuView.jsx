@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../services/adminApi';
-import { useCanteen } from '../../../context/CanteenContext';
+import { useCanteen } from '../../../context/useCanteen';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 
 export default function MenuView() {

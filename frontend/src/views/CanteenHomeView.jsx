@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useCanteen } from '../context/CanteenContext';
+import { useCanteen } from '../context/useCanteen';
 import { MenuCard } from '../components/canteen/MenuCard';
 import { getServerUrl } from '../services/api';
 import {

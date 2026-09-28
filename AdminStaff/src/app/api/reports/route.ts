@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, hasPermission } from '@/lib/auth';
 import { connectDB, sequelize } from '@/config/database';
 const { Order, Student } = require('@/models');
 
 export async function GET(req: Request) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || (!hasPermission(session, 'reports') && !hasPermission(session, 'dashboard'))) {
+      return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
+    }
 
     await connectDB();
 
@@ -35,19 +37,56 @@ export async function GET(req: Request) {
     `);
     const recharge = rechargeRows[0] || {};
 
-    // 3. Students Registration Stats (Today, Monthly, Yearly, Total)
+    // 3. Students Registration Stats (Today, Monthly, Yearly, Total) & Total Remaining Wallet Balance
     const [studentRows]: any = await sequelize.query(`
       SELECT
         COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) AS today_students,
         COUNT(CASE WHEN YEAR(created_at) = YEAR(CURRENT_DATE) AND MONTH(created_at) = MONTH(CURRENT_DATE) THEN 1 END) AS monthly_students,
         COUNT(CASE WHEN YEAR(created_at) = YEAR(CURRENT_DATE) THEN 1 END) AS yearly_students,
-        COUNT(*) AS total_students
+        COUNT(*) AS total_students,
+        COALESCE(SUM(wallet_balance), 0) AS total_remaining_amount,
+        COALESCE(AVG(wallet_balance), 0) AS avg_wallet_balance,
+        COUNT(CASE WHEN wallet_balance > 0 THEN 1 END) AS students_with_balance,
+        COUNT(CASE WHEN wallet_balance <= 0 THEN 1 END) AS students_zero_balance,
+        COALESCE(MAX(wallet_balance), 0) AS max_wallet_balance
       FROM students
       WHERE deleted_at IS NULL
     `);
     const student = studentRows[0] || {};
 
-    // 3b. Schools Registration Stats (Today, Monthly, Yearly, Total)
+    // 3b. Top Students by Remaining Wallet Balance
+    const [topWalletStudents]: any = await sequelize.query(`
+      SELECT 
+        s.id,
+        s.name,
+        s.class,
+        s.section,
+        s.roll,
+        s.phone,
+        s.wallet_balance,
+        COALESCE(sc.name, 'Campus Branch') AS school_name
+      FROM students s
+      LEFT JOIN schools sc ON s.school_id = sc.id
+      WHERE s.deleted_at IS NULL AND s.wallet_balance > 0
+      ORDER BY s.wallet_balance DESC, s.name ASC
+      LIMIT 5
+    `);
+
+    // 3c. Remaining Wallet Balance by School / Branch
+    const [schoolWalletRows]: any = await sequelize.query(`
+      SELECT 
+        COALESCE(sc.name, 'Main Branch') AS school_name,
+        COUNT(s.id) AS total_students,
+        COALESCE(SUM(s.wallet_balance), 0) AS remaining_amount
+      FROM students s
+      LEFT JOIN schools sc ON s.school_id = sc.id
+      WHERE s.deleted_at IS NULL
+      GROUP BY sc.id, sc.name
+      ORDER BY remaining_amount DESC
+      LIMIT 6
+    `);
+
+    // 3d. Schools Registration Stats (Today, Monthly, Yearly, Total)
     const [schoolRows]: any = await sequelize.query(`
       SELECT
         COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) AS today_schools,
@@ -303,7 +342,24 @@ export async function GET(req: Request) {
         today: Number(student.today_students || 0),
         monthly: Number(student.monthly_students || 0),
         yearly: Number(student.yearly_students || 0),
-        total: Number(student.total_students || 0)
+        total: Number(student.total_students || 0),
+        totalRemainingAmount: Number(student.total_remaining_amount || 0)
+      },
+      studentWallets: {
+        totalRemaining: Number(student.total_remaining_amount || 0),
+        avgBalance: Number(student.avg_wallet_balance || 0),
+        studentsWithBalance: Number(student.students_with_balance || 0),
+        studentsZeroBalance: Number(student.students_zero_balance || 0),
+        maxBalance: Number(student.max_wallet_balance || 0),
+        topStudents: (topWalletStudents || []).map((s: any) => ({
+          ...s,
+          wallet_balance: Number(s.wallet_balance || 0)
+        })),
+        bySchool: (schoolWalletRows || []).map((sc: any) => ({
+          ...sc,
+          total_students: Number(sc.total_students || 0),
+          remaining_amount: Number(sc.remaining_amount || 0)
+        }))
       },
       schools: {
         today: Number(school.today_schools || 0),

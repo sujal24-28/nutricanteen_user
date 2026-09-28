@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { useCanteen } from '../../../context/CanteenContext';
+import { useCanteen } from '../../../context/useCanteen';
 import { LayoutDashboard, Utensils, LogOut, ShieldCheck } from 'lucide-react';
 
 export default function Layout() {

@@ -5,6 +5,7 @@ const fs       = require('fs');
 const { Op }   = require('sequelize');
 const { MenuItem } = require('../models');
 const { parsePagination, paginationMeta } = require('../utils/pagination.util');
+const { uploadToCloudinary } = require('../utils/cloudinary.util');
 
 /**
  * List available menu items with optional category filter and search.
@@ -49,14 +50,20 @@ const getItem = async (id) => {
  */
 const createItem = async (data, file) => {
   const imageUrl = file
-    ? `/uploads/${file.filename}`
+    ? await uploadToCloudinary(file, 'nutricanteen/menu')
     : null;
 
+  const formattedName = data.name
+    ? data.name.trim().charAt(0).toUpperCase() + data.name.trim().slice(1)
+    : data.name;
+
   const item = await MenuItem.create({
-    name:         data.name,
+    name:         formattedName,
     description:  data.description,
     price:        parseFloat(data.price),
+    mrp:          data.mrp ? parseFloat(data.mrp) : null,
     category:     data.category || 'General',
+    food_type:    data.food_type || 'veg',
     is_available: data.is_available !== 'false',
     daily_limit:  data.daily_limit ? parseInt(data.daily_limit, 10) : null,
     image_url:    imageUrl,
@@ -78,18 +85,26 @@ const updateItem = async (id, data, file) => {
 
   if (file) {
     // Remove old image if exists
-    if (item.image_url) {
+    if (item.image_url && item.image_url.startsWith('/uploads/')) {
       const oldPath = path.join(__dirname, '..', '..', item.image_url);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (_) {}
+      }
     }
-    data.image_url = `/uploads/${file.filename}`;
+    data.image_url = await uploadToCloudinary(file, 'nutricanteen/menu');
   }
 
+  const formattedName = data.name !== undefined
+    ? (data.name ? data.name.trim().charAt(0).toUpperCase() + data.name.trim().slice(1) : data.name)
+    : item.name;
+
   await item.update({
-    name:         data.name         ?? item.name,
+    name:         formattedName,
     description:  data.description  ?? item.description,
     price:        data.price        ? parseFloat(data.price) : item.price,
+    mrp:          data.mrp !== undefined ? (data.mrp ? parseFloat(data.mrp) : null) : item.mrp,
     category:     data.category     ?? item.category,
+    food_type:    data.food_type    ?? item.food_type,
     is_available: data.is_available !== undefined
       ? data.is_available !== 'false'
       : item.is_available,

@@ -23,7 +23,9 @@ interface MenuItemType {
   name: string;
   description: string;
   price: string | number;
+  mrp?: string | number | null;
   category: string;
+  food_type?: 'veg' | 'non-veg' | 'egg' | string;
   is_available: boolean;
   daily_limit?: number | null;
   image_url?: string | null;
@@ -32,6 +34,61 @@ interface MenuItemType {
   updated_at?: string;
   updatedAt?: string;
 }
+
+// FSSAI-style Dietary Symbol Component (Veg, Non-Veg, Egg)
+export const FoodTypeSymbol = ({ type, size = 'sm' }: { type?: string; size?: 'sm' | 'md' | 'lg' }) => {
+  const t = (type || 'veg').toLowerCase();
+
+  if (t === 'non-veg' || t === 'non_veg' || t === 'nonveg') {
+    return (
+      <span
+        title="Non-Vegetarian"
+        className={`inline-flex items-center justify-center border border-red-700 bg-red-50/80 rounded-xs flex-shrink-0 ${
+          size === 'lg' ? 'w-5 h-5 p-0.5' : size === 'md' ? 'w-4 h-4 p-0.5' : 'w-3.5 h-3.5 p-0.5'
+        }`}
+      >
+        <span
+          className={`w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-b-[6px] border-b-red-700 inline-block ${
+            size === 'lg' ? 'border-l-[5px] border-r-[5px] border-b-[8px]' : ''
+          }`}
+        />
+      </span>
+    );
+  }
+
+  if (t === 'egg' || t === 'eggetarian') {
+    return (
+      <span
+        title="Egg Only"
+        className={`inline-flex items-center justify-center border border-amber-600 bg-amber-50/80 rounded-xs flex-shrink-0 ${
+          size === 'lg' ? 'w-5 h-5 p-0.5' : size === 'md' ? 'w-4 h-4 p-0.5' : 'w-3.5 h-3.5 p-0.5'
+        }`}
+      >
+        <span
+          className={`rounded-full bg-amber-600 inline-block ${
+            size === 'lg' ? 'w-2.5 h-2.5' : size === 'md' ? 'w-2 h-2' : 'w-1.5 h-1.5'
+          }`}
+        />
+      </span>
+    );
+  }
+
+  // Pure Veg
+  return (
+    <span
+      title="Pure Vegetarian"
+      className={`inline-flex items-center justify-center border border-emerald-600 bg-emerald-50/80 rounded-xs flex-shrink-0 ${
+        size === 'lg' ? 'w-5 h-5 p-0.5' : size === 'md' ? 'w-4 h-4 p-0.5' : 'w-3.5 h-3.5 p-0.5'
+      }`}
+    >
+      <span
+        className={`rounded-full bg-emerald-600 inline-block ${
+          size === 'lg' ? 'w-2.5 h-2.5' : size === 'md' ? 'w-2 h-2' : 'w-1.5 h-1.5'
+        }`}
+      />
+    </span>
+  );
+};
 
 interface ItemDetailResponse {
   item: MenuItemType;
@@ -58,7 +115,7 @@ export default function MenuPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<any>({ name: '', description: '', price: '', category: 'General', is_available: true });
+  const [formData, setFormData] = useState<any>({ name: '', description: '', price: '', mrp: '', category: 'General', food_type: 'veg', is_available: true });
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   // View Details Modal State
@@ -134,10 +191,14 @@ export default function MenuPage() {
     const method = isEdit ? 'PATCH' : 'POST';
 
     const payload = new FormData();
-    payload.append('name', formData.name);
+    const rawName = (formData.name || '').trim();
+    const formattedName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : '';
+    payload.append('name', formattedName);
     payload.append('description', formData.description || '');
     payload.append('price', formData.price.toString());
+    payload.append('mrp', formData.mrp ? formData.mrp.toString() : '');
     payload.append('category', formData.category);
+    payload.append('food_type', formData.food_type || 'veg');
     payload.append('is_available', formData.is_available.toString());
     if (imageFile) {
       payload.append('image', imageFile);
@@ -177,7 +238,9 @@ export default function MenuPage() {
       item.name?.toLowerCase().includes(q) ||
       item.description?.toLowerCase().includes(q) ||
       item.category?.toLowerCase().includes(q) ||
-      item.price?.toString().includes(q);
+      item.food_type?.toLowerCase().includes(q) ||
+      item.price?.toString().includes(q) ||
+      item.mrp?.toString().includes(q);
 
     const matchesCategory =
       categoryFilter === 'all' ||
@@ -213,11 +276,11 @@ export default function MenuPage() {
           <h1 className="text-2xl font-bold text-brand-brown-dark">
             Menu Management
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage dishes, pricing, photos, and inspect individual item analytics</p>
+          <p className="text-sm text-gray-500 mt-0.5">Manage dishes, pricing & MRP, dietary types (Veg/Non-Veg/Egg), photos, and inspect individual item analytics</p>
         </div>
         <button
           onClick={() => {
-            setFormData({ name: '', description: '', price: '', category: 'general', is_available: true });
+            setFormData({ name: '', description: '', price: '', mrp: '', category: 'general', food_type: 'veg', is_available: true });
             setImageFile(null);
             setShowForm(true);
           }}
@@ -278,11 +341,51 @@ export default function MenuPage() {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input required className="w-full border p-2 rounded-lg" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <input
+                required
+                className="w-full border p-2 rounded-lg"
+                value={formData.name}
+                onChange={e => {
+                  const val = e.target.value;
+                  const capitalized = val ? val.charAt(0).toUpperCase() + val.slice(1) : '';
+                  setFormData({ ...formData, name: capitalized });
+                }}
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
-              <input required type="number" step="0.01" className="w-full border p-2 rounded-lg" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Selling Price (₹) <span className="text-red-500">*</span>
+              </label>
+              <input
+                required
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g. 179"
+                className="w-full border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold/60"
+                value={formData.price}
+                onChange={e => setFormData({...formData, price: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center justify-between">
+                <span>MRP / List Price (₹)</span>
+                {formData.mrp && Number(formData.mrp) > Number(formData.price) && (
+                  <span className="text-xs text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    {Math.round(((Number(formData.mrp) - Number(formData.price)) / Number(formData.mrp)) * 100)}% OFF
+                  </span>
+                )}
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g. 249 (optional)"
+                className="w-full border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold/60"
+                value={formData.mrp ?? ''}
+                onChange={e => setFormData({...formData, mrp: e.target.value})}
+              />
+              <p className="text-[11px] text-gray-400 mt-1">If entered, MRP will be strikethrough with discount % badge shown</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
@@ -301,6 +404,49 @@ export default function MenuPage() {
                 <option value="true">Available</option>
                 <option value="false">Out of Stock</option>
               </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Dietary Preference / Food Type <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, food_type: 'veg' })}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                    (formData.food_type || 'veg') === 'veg'
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/30'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <FoodTypeSymbol type="veg" size="md" />
+                  <span>Veg (Pure)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, food_type: 'non-veg' })}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                    formData.food_type === 'non-veg'
+                      ? 'border-red-600 bg-red-50 text-red-800 ring-2 ring-red-500/30'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <FoodTypeSymbol type="non-veg" size="md" />
+                  <span>Non-Veg</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, food_type: 'egg' })}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                    formData.food_type === 'egg'
+                      ? 'border-amber-600 bg-amber-50 text-amber-800 ring-2 ring-amber-500/30'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <FoodTypeSymbol type="egg" size="md" />
+                  <span>Egg Only</span>
+                </button>
+              </div>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -327,7 +473,7 @@ export default function MenuPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-brand-brown-light uppercase tracking-wider">Image</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-brand-brown-light uppercase tracking-wider">Item</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-brand-brown-light uppercase tracking-wider">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-brand-brown-light uppercase tracking-wider">Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-brand-brown-light uppercase tracking-wider">Price & MRP</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-brand-brown-light uppercase tracking-wider">Status</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-brand-brown-light uppercase tracking-wider">Actions</th>
             </tr>
@@ -361,16 +507,33 @@ export default function MenuPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => openItemDetails(item.id)}
-                      className="font-bold text-brand-brown-dark hover:text-brand-gold-dark text-left transition"
-                    >
-                      {item.name}
-                    </button>
-                    {item.description && <div className="text-xs text-gray-400 line-clamp-1 max-w-xs">{item.description}</div>}
+                    <div className="flex items-center gap-2">
+                      <FoodTypeSymbol type={item.food_type || 'veg'} size="sm" />
+                      <button
+                        onClick={() => openItemDetails(item.id)}
+                        className="font-bold text-base text-brand-brown-dark hover:text-brand-gold-dark text-left transition capitalize"
+                      >
+                        {item.name}
+                      </button>
+                    </div>
+                    {item.description && <div className="text-xs text-gray-400 line-clamp-1 max-w-xs pl-5">{item.description}</div>}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">{item.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-gold-dark font-bold">₹{item.price}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-sm font-extrabold text-gray-900">₹{Number(item.price).toFixed(2)}</span>
+                        {item.mrp && Number(item.mrp) > Number(item.price) && (
+                          <span className="text-xs text-gray-400 line-through font-medium">₹{Number(item.mrp).toFixed(2)}</span>
+                        )}
+                      </div>
+                      {item.mrp && Number(item.mrp) > Number(item.price) && (
+                        <span className="inline-flex items-center text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded w-fit mt-0.5 border border-blue-100">
+                          {Math.round(((Number(item.mrp) - Number(item.price)) / Number(item.mrp)) * 100)}% OFF
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2.5">
                       <button
@@ -409,7 +572,7 @@ export default function MenuPage() {
 
                       {/* Edit Button */}
                       <button
-                        onClick={() => { setFormData(item); setImageFile(null); setShowForm(true); }}
+                        onClick={() => { setFormData({ ...item, name: item.name ? item.name.charAt(0).toUpperCase() + item.name.slice(1) : '', mrp: item.mrp || '', food_type: item.food_type || 'veg' }); setImageFile(null); setShowForm(true); }}
                         className="p-1.5 text-brand-brown-light hover:text-brand-brown-dark rounded-md hover:bg-gray-100 transition"
                         title="Edit Item"
                       >
@@ -455,7 +618,8 @@ export default function MenuPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    {itemDetails?.item.name || 'Loading Dish...'}
+                    <FoodTypeSymbol type={itemDetails?.item.food_type || 'veg'} size="md" />
+                    <span>{itemDetails?.item.name || 'Loading Dish...'}</span>
                     <span className="text-xs bg-brand-gold/20 text-brand-gold border border-brand-gold/40 px-2 py-0.5 rounded-full font-semibold capitalize">
                       {itemDetails?.item.category || 'General'}
                     </span>
@@ -568,12 +732,33 @@ export default function MenuPage() {
                         </div>
                         <div className="flex justify-between py-1.5 border-b border-gray-100">
                           <span className="text-gray-500 font-medium">Selling Price</span>
-                          <span className="font-bold text-brand-gold-dark text-base">₹{itemDetails.item.price}</span>
+                          <span className="font-bold text-brand-gold-dark text-base">₹{Number(itemDetails.item.price).toFixed(2)}</span>
                         </div>
+                        {itemDetails.item.mrp && Number(itemDetails.item.mrp) > Number(itemDetails.item.price) && (
+                          <>
+                            <div className="flex justify-between py-1.5 border-b border-gray-100">
+                              <span className="text-gray-500 font-medium">MRP (List Price)</span>
+                              <span className="font-semibold text-gray-400 line-through text-sm">₹{Number(itemDetails.item.mrp).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between py-1.5 border-b border-gray-100">
+                              <span className="text-gray-500 font-medium">Discount Applied</span>
+                              <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
+                                {Math.round(((Number(itemDetails.item.mrp) - Number(itemDetails.item.price)) / Number(itemDetails.item.mrp)) * 100)}% OFF (Save ₹{(Number(itemDetails.item.mrp) - Number(itemDetails.item.price)).toFixed(2)})
+                              </span>
+                            </div>
+                          </>
+                        )}
                         <div className="flex justify-between py-1.5 border-b border-gray-100">
                           <span className="text-gray-500 font-medium">Meal Category</span>
                           <span className="font-semibold text-gray-800 capitalize bg-gray-100 px-2 py-0.5 rounded-md text-xs">
                             {itemDetails.item.category}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                          <span className="text-gray-500 font-medium">Dietary Type</span>
+                          <span className="inline-flex items-center gap-1.5 font-semibold text-gray-800 capitalize bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-md text-xs">
+                            <FoodTypeSymbol type={itemDetails.item.food_type || 'veg'} size="sm" />
+                            {itemDetails.item.food_type === 'non-veg' ? 'Non-Vegetarian' : itemDetails.item.food_type === 'egg' ? 'Egg Only' : 'Vegetarian'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center py-2 border-b border-gray-100">

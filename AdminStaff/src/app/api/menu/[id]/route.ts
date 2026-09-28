@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, hasPermission } from '@/lib/auth';
 import { connectDB, sequelize } from '@/config/database';
 import { uploadMenuImage } from '@/lib/cloudinary';
 const { MenuItem, Order, OrderItem, Student } = require('@/models');
@@ -7,7 +7,7 @@ const { MenuItem, Order, OrderItem, Student } = require('@/models');
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'menu')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     const { id } = await params;
     await connectDB();
@@ -98,7 +98,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    if (!session || session.role === 'staff') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'menu')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     const { id } = await params;
     
@@ -107,10 +107,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
-      if (formData.has('name')) data.name = formData.get('name');
+      if (formData.has('name')) {
+        const rawName = (formData.get('name') as string)?.trim() || '';
+        data.name = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : '';
+      }
       if (formData.has('description')) data.description = formData.get('description');
       if (formData.has('price')) data.price = formData.get('price');
+      if (formData.has('mrp')) {
+        const mrpVal = formData.get('mrp');
+        data.mrp = mrpVal ? parseFloat(mrpVal as string) : null;
+      }
       if (formData.has('category')) data.category = formData.get('category');
+      if (formData.has('food_type')) data.food_type = formData.get('food_type');
       if (formData.has('is_available')) data.is_available = formData.get('is_available') === 'true';
 
       const file = formData.get('image') as File | null;
@@ -121,6 +129,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
     } else {
       data = await req.json();
+      if (data.name) {
+        const rawName = (data.name as string)?.trim() || '';
+        data.name = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : '';
+      }
+      if (data.mrp !== undefined) {
+        data.mrp = data.mrp ? parseFloat(data.mrp) : null;
+      }
     }
 
     await connectDB();
@@ -138,7 +153,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    if (!session || session.role === 'staff') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'menu')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     const { id } = await params;
     await connectDB();

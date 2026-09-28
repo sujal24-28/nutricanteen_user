@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCanteen } from '../context/CanteenContext';
+import { useCanteen } from '../context/useCanteen';
 import {
   GraduationCap,
   ShieldCheck,

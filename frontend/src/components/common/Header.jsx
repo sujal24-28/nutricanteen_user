@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCanteen } from '../../context/CanteenContext';
+import { useCanteen } from '../../context/useCanteen';
 import { Wallet, Plus, Calendar, Clock, ChevronDown, GraduationCap, ShieldCheck } from 'lucide-react';
 
 export const Header = () => {

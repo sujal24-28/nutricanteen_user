@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, hasPermission } from '@/lib/auth';
 import { connectDB } from '@/config/database';
 const { Student, WalletTransaction } = require('@/models');
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    if (!session || session.role === 'staff') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'students')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     const { id } = await params;
     const { amount, type, description } = await req.json(); // type: 'refund' (add) or 'deduct' (sub)

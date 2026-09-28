@@ -22,11 +22,22 @@ const MenuItem = sequelize.define('MenuItem', {
     allowNull: false,
     validate:  { min: 0 },
   },
+  mrp: {
+    type:      DataTypes.DECIMAL(8, 2),
+    allowNull: true,
+    validate:  { min: 0 },
+  },
   category: {
     type:         DataTypes.STRING(50),
     allowNull:    false,
     defaultValue: 'General',
     comment:      'e.g. Breakfast, Lunch, Snacks, Beverages',
+  },
+  food_type: {
+    type:         DataTypes.STRING(20),
+    allowNull:    false,
+    defaultValue: 'veg',
+    comment:      'veg, non-veg, egg',
   },
   image_url: {
     type:      DataTypes.STRING(500),

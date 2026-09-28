@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCanteen } from '../../context/CanteenContext';
+import { useCanteen } from '../../context/useCanteen';
 import { X, GraduationCap, School, Wallet, Info } from 'lucide-react';
 
 export const StudentIdCardModal = () => {

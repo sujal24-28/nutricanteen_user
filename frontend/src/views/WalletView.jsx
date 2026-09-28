@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCanteen } from '../context/CanteenContext';
+import { useCanteen } from '../context/useCanteen';
 import { Wallet, Plus, ArrowDownLeft, ArrowUpRight, ShieldCheck, Sparkles, Building2 } from 'lucide-react';
 
 export const WalletView = () => {

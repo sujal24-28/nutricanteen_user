@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { CanteenProvider, useCanteen } from './context/CanteenContext';
+import { CanteenProvider } from './context/CanteenContext';
+import { useCanteen } from './context/useCanteen';
 import { BottomNav } from './components/common/BottomNav';
 
 // Auth Components

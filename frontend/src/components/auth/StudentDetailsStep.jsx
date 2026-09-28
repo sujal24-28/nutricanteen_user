@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCanteen } from '../../context/CanteenContext';
+import { useCanteen } from '../../context/useCanteen';
 import { CLASSES_LIST, SECTIONS_LIST } from '../../data/schools';
 import { apiGetSchools } from '../../services/api';
 import { School, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';

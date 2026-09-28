@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, hasPermission } from '@/lib/auth';
 import { connectDB } from '@/config/database';
 import { uploadMenuImage } from '@/lib/cloudinary';
 const { MenuItem } = require('@/models');
@@ -7,7 +7,7 @@ const { MenuItem } = require('@/models');
 export async function GET(req: Request) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'menu')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     await connectDB();
     const menu = await MenuItem.findAll({ where: { deleted_at: null }, order: [['name', 'ASC']] });
@@ -20,14 +20,19 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    if (!session || session.role === 'staff') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !hasPermission(session, 'menu')) return NextResponse.json({ error: 'Unauthorized: insufficient permissions' }, { status: 403 });
 
     const formData = await req.formData();
+    const rawName = (formData.get('name') as string)?.trim() || '';
+    const formattedName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : '';
+    const mrpRaw = formData.get('mrp');
     const data: any = {
-      name: formData.get('name'),
+      name: formattedName,
       description: formData.get('description'),
       price: formData.get('price'),
+      mrp: mrpRaw ? parseFloat(mrpRaw as string) : null,
       category: formData.get('category'),
+      food_type: formData.get('food_type') || 'veg',
       is_available: formData.get('is_available') === 'true',
     };
 

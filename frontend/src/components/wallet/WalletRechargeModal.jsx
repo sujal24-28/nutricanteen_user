@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useCanteen } from '../../context/CanteenContext';
+import { useCanteen } from '../../context/useCanteen';
 import { X, Wallet, ShieldCheck, Check, Sparkles, CreditCard, Smartphone, Building, ArrowRight } from 'lucide-react';
 
 export const WalletRechargeModal = () => {
