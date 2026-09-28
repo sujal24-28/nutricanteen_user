@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCanteen } from '../../context/CanteenContext';
-import { Plus, Minus, Flame } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 import { getServerUrl } from '../../services/api';
 
 export const MenuCard = ({ item }) => {
@@ -34,10 +34,7 @@ export const MenuCard = ({ item }) => {
             <span className="text-[10px] font-semibold text-leaf-700 dark:text-leaf-300 bg-leaf-50 dark:bg-leaf-900/50 px-2 py-0.5 rounded-full border border-leaf-200/50">
               {item.dietaryTag}
             </span>
-            <span className="text-[10px] text-gray-400 dark:text-leaf-300/60 flex items-center gap-0.5 ml-auto font-medium">
-              <Flame className="w-3 h-3 text-gold-600" />
-              {item.calories}
-            </span>
+
           </div>
 
           {/* Title */}
