@@ -18,7 +18,7 @@ export const Header = () => {
   return (
     <header className="sticky top-0 z-30 bg-leaf-900/95 backdrop-blur-md text-white border-b border-leaf-800 shadow-md">
       {/* Top Identity Row */}
-      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+      <div className="px-4 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.4rem))] pb-2 flex items-center justify-between">
         {/* Student Class / Sec / Roll Badge */}
         <button 
           onClick={() => setIsStudentIdModalOpen(true)}

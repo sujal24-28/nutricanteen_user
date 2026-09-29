@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { Capacitor } from '@capacitor/core';
 import {
   checkBackendHealth,
   apiSendOtp,
@@ -28,17 +29,28 @@ import {
 } from '../services/api';
 import { CanteenContext } from './useCanteen';
 
+const STORAGE_KEY_PRODUCTS = 'nutricanteen_products_v2';
 const STORAGE_KEY_STUDENT = 'nutricanteen_student_v2';
 const STORAGE_KEY_ADMIN = 'nutricanteen_admin_v2';
 const STORAGE_KEY_WALLET = 'nutricanteen_wallet_v2';
 const STORAGE_KEY_ORDERS = 'nutricanteen_orders_v2';
 const STORAGE_KEY_TRANSACTIONS = 'nutricanteen_transactions_v2';
 const STORAGE_KEY_ADDRESSES = 'nutricanteen_addresses_v2';
+const STORAGE_KEY_CART = 'nutricanteen_cart_v2';
 
 export const CanteenProvider = ({ children }) => {
   // Backend connection status
   const [isBackendConnected, setIsBackendConnected] = useState(false);
-  const [backendProducts, setBackendProducts] = useState([]);
+  const [backendProducts, setBackendProducts] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
   const [backendCities, setBackendCities] = useState([]);
   const [backendCategories, setBackendCategories] = useState([]);
 
@@ -104,8 +116,17 @@ export const CanteenProvider = ({ children }) => {
   const [preOrderDateLabel, setPreOrderDateLabel] = useState(`Tomorrow (${getTomorrowFormatted()})`);
   const [breakSlot, setBreakSlot] = useState('lunch'); // 'recess' | 'lunch'
 
-  // 4. Cart State
-  const [cart, setCart] = useState([]);
+  // 4. Cart State (Persisted across app closures)
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_CART);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
 
   // 5. Orders State
   const [orders, setOrders] = useState(() => {
@@ -133,7 +154,20 @@ export const CanteenProvider = ({ children }) => {
   });
 
   // 7. Navigation and Modals
-  const [activeTab, setActiveTab] = useState('menu'); // 'menu' | 'orders' | 'wallet' | 'studentId'
+  const [activeTab, setActiveTabState] = useState('menu'); // 'menu' | 'orders' | 'wallet' | 'studentId' | 'settings'
+  const [tabHistory, setTabHistory] = useState(['menu']);
+
+  const setActiveTab = React.useCallback((tab) => {
+    setActiveTabState((current) => {
+      if (current === tab) return current;
+      setTabHistory((hist) => {
+        if (tab === 'menu') return ['menu'];
+        return [...hist.filter((t) => t !== tab), tab];
+      });
+      return tab;
+    });
+  }, []);
+
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isPreOrderModalOpen, setIsPreOrderModalOpen] = useState(false);
@@ -143,6 +177,125 @@ export const CanteenProvider = ({ children }) => {
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [banner, setBanner] = useState(null);
+
+  const backStateRef = React.useRef({
+    isEditProfileOpen: false,
+    isServerSettingsOpen: false,
+    isStudentIdModalOpen: false,
+    isPreOrderModalOpen: false,
+    isRechargeOpen: false,
+    isCartOpen: false,
+    isStaffTerminalOpen: false,
+    authStep: 'phone',
+    activeTab: 'menu',
+    tabHistory: ['menu']
+  });
+
+  useEffect(() => {
+    backStateRef.current = {
+      isEditProfileOpen,
+      isServerSettingsOpen,
+      isStudentIdModalOpen,
+      isPreOrderModalOpen,
+      isRechargeOpen,
+      isCartOpen,
+      isStaffTerminalOpen,
+      authStep,
+      activeTab,
+      tabHistory
+    };
+  }, [
+    isEditProfileOpen,
+    isServerSettingsOpen,
+    isStudentIdModalOpen,
+    isPreOrderModalOpen,
+    isRechargeOpen,
+    isCartOpen,
+    isStaffTerminalOpen,
+    authStep,
+    activeTab,
+    tabHistory
+  ]);
+
+  // Centralized Hardware / Gesture Back Button Interceptor for Android Phone
+  useEffect(() => {
+    const handleBackNavigation = () => {
+      const state = backStateRef.current;
+
+      // 1. If any overlay modal is open, close the topmost modal
+      if (state.isEditProfileOpen) {
+        setIsEditProfileOpen(false);
+        return true;
+      }
+      if (state.isServerSettingsOpen) {
+        setIsServerSettingsOpen(false);
+        return true;
+      }
+      if (state.isStudentIdModalOpen) {
+        setIsStudentIdModalOpen(false);
+        return true;
+      }
+      if (state.isPreOrderModalOpen) {
+        setIsPreOrderModalOpen(false);
+        return true;
+      }
+      if (state.isRechargeOpen) {
+        setIsRechargeOpen(false);
+        return true;
+      }
+      if (state.isCartOpen) {
+        setIsCartOpen(false);
+        return true;
+      }
+      if (state.isStaffTerminalOpen) {
+        setIsStaffTerminalOpen(false);
+        return true;
+      }
+
+      // 2. Auth flow back: from OTP step back to phone number input
+      if (state.authStep === 'otp') {
+        setAuthStep('phone');
+        return true;
+      }
+
+      // 3. Tab navigation back: return to previous section!
+      if (state.activeTab !== 'menu') {
+        const hist = state.tabHistory || [];
+        if (hist.length > 1) {
+          const nextHist = hist.slice(0, -1);
+          const previousSection = nextHist[nextHist.length - 1] || 'menu';
+          setTabHistory(nextHist);
+          setActiveTabState(previousSection);
+        } else {
+          setTabHistory(['menu']);
+          setActiveTabState('menu');
+        }
+        return true;
+      }
+
+      // 4. On root home section ('menu') with no modals open:
+      // Return false to allow native double-back exit handler in MainActivity
+      return false;
+    };
+
+    // Expose for native Android BridgeActivity WebView evaluation
+    window.__handleHardwareBack = handleBackNavigation;
+
+    // Web browser history navigation support
+    const handlePopState = (e) => {
+      const handled = handleBackNavigation();
+      if (handled) {
+        e.preventDefault();
+        window.history.pushState(null, '', window.location.href);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      delete window.__handleHardwareBack;
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   // Sync to local storage
   useEffect(() => {
@@ -170,8 +323,24 @@ export const CanteenProvider = ({ children }) => {
   }, [orders]);
 
   useEffect(() => {
+    try {
+      if (cart && cart.length > 0) {
+        localStorage.setItem(STORAGE_KEY_CART, JSON.stringify(cart));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_CART);
+      }
+    } catch (e) {}
+  }, [cart]);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
   }, [transactions]);
+
+  useEffect(() => {
+    if (backendProducts && backendProducts.length > 0) {
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(backendProducts));
+    }
+  }, [backendProducts]);
 
   // Ensure default address exists if student is logged in and no address yet
   useEffect(() => {
@@ -230,29 +399,194 @@ export const CanteenProvider = ({ children }) => {
     return [];
   }, [backendProducts]);
 
-  // Synchronize state with Laravel Backend
+  // Show banner alert with quick auto-dismiss (1.8s)
+  const showToast = React.useCallback((title, message, type = 'success', duration = 1800) => {
+    setNotification({ title, message, type, id: Date.now() });
+    setTimeout(() => {
+      setNotification((current) => (current?.title === title ? null : current));
+    }, duration);
+  }, []);
+
+  const dismissToast = React.useCallback(() => {
+    setNotification(null);
+  }, []);
+
+  const normalizeOrderStatus = (raw) => {
+    const s = String(raw || 'pending').toLowerCase().trim();
+    if (s === 'confirmed' || s === 'preparing' || s === 'cooking') return 'preparing';
+    if (s === 'ready' || s === 'accepted') return 'ready';
+    if (s === 'delivered' || s === 'completed' || s.includes('collected') || s.includes('handed')) return 'delivered';
+    if (s === 'cancelled' || s === 'rejected' || s.includes('cancel')) return 'cancelled';
+    return 'pending';
+  };
+
+  const prevOrdersRef = React.useRef(new Map()); // id -> status
+  const prevWalletRef = React.useRef(null);
+  const prevProductsHashRef = React.useRef('');
+  const isSyncingRef = React.useRef(false);
+
+  // Synchronize state with Backend Live at runtime without tearing down UI
+  const syncLiveStatus = React.useCallback(async (isInitial = false) => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    try {
+      const hasToken = !!getStoredToken();
+      const promises = [
+        apiGetAllProducts().catch(() => null),
+        apiGetBanner().catch(() => null)
+      ];
+      if (hasToken) {
+        promises.push(apiGetOrderList().catch(() => null));
+        promises.push(apiGetWallet().catch(() => null));
+      }
+
+      const [prodRes, bannerRes, ordersRes, walletRes] = await Promise.all(promises);
+
+      // 1. Sync Menu Products Live (Instant Menu changes from Admin/Staff)
+      if (prodRes?.ok && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
+        const prodData = prodRes.data;
+        const newHash = JSON.stringify(prodData.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          mrp: p.mrp,
+          is_available: p.is_available,
+          food_type: p.food_type,
+          image_url: p.image_url,
+          category: p.category
+        })));
+
+        if (newHash !== prevProductsHashRef.current) {
+          prevProductsHashRef.current = newHash;
+          setBackendProducts(prodData);
+          setIsBackendConnected(true);
+        }
+      }
+
+      // 2. Sync Orders Live (Instant status updates: pending -> preparing -> ready -> delivered)
+      if (ordersRes?.ok) {
+        const ordersArray = ordersRes.data?.data?.orders || ordersRes.data?.orders || [];
+        if (Array.isArray(ordersArray)) {
+          const mappedOrders = ordersArray.map((o, idx) => {
+            let items = [];
+            try {
+              if (o.items && Array.isArray(o.items)) {
+                items = o.items.map(i => ({
+                  name: i.menuItem?.name || i.name || 'Meal Item',
+                  quantity: i.quantity,
+                  price: Number(i.unit_price || i.price || 0)
+                }));
+              } else if (o.product_details) {
+                items = typeof o.product_details === 'string' ? JSON.parse(o.product_details) : o.product_details;
+              }
+            } catch (e) {
+              items = [{ name: 'Meal Item', quantity: o.product_count || 1, price: Number(o.total_amount || 0) }];
+            }
+
+            const rawStatus = (o.status || o.order_status || 'pending').toLowerCase();
+            const normalizedStatus = normalizeOrderStatus(rawStatus);
+
+            return {
+              id: o.id || o.order_id,
+              tokenNumber: `TK-${(o.id || o.order_id || idx + 10).toString().slice(-2)}`,
+              items: Array.isArray(items) ? items : [items],
+              totalAmount: Number(o.grand_amount || o.total_amount || 0),
+              preOrderDate: (new Date(o.pickup_time || o.created_at || Date.now())).toLocaleDateString(),
+              breakSlot: o.note || 'Lunch Break (1:15 PM)',
+              status: normalizedStatus,
+              rawStatus: o.status || o.order_status,
+              pickupNote: o.student 
+                ? `Student: ${o.student.name} (${o.student.class}-${o.student.section}, Roll #${o.student.roll})` 
+                : `Student: Student`,
+              createdAt: o.created_at || o.order_time || 'Recent'
+            };
+          });
+
+          // Check for status transitions to notify student with instant alerts
+          if (!isInitial && prevOrdersRef.current.size > 0) {
+            mappedOrders.forEach((newOrder) => {
+              const prevStatus = prevOrdersRef.current.get(newOrder.id);
+              if (prevStatus && prevStatus !== newOrder.status) {
+                if (newOrder.status === 'ready') {
+                  showToast('Order Ready for Pickup! 🍱', `Token ${newOrder.tokenNumber} is ready at the canteen counter!`, 'success');
+                  try {
+                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+                  } catch (e) {}
+                } else if (newOrder.status === 'preparing') {
+                  showToast('Preparing Order 👨‍🍳', `Kitchen is preparing your order (${newOrder.tokenNumber}).`, 'info');
+                } else if (newOrder.status === 'delivered') {
+                  showToast('Order Collected 🎉', `Order ${newOrder.tokenNumber} collected. Enjoy your meal!`, 'success');
+                } else if (newOrder.status === 'cancelled') {
+                  showToast('Order Cancelled ⚠️', `Order ${newOrder.tokenNumber} was cancelled and refunded.`, 'error');
+                }
+              }
+            });
+          }
+
+          // Update known orders map
+          const newMap = new Map();
+          mappedOrders.forEach(o => newMap.set(o.id, o.status));
+          prevOrdersRef.current = newMap;
+
+          setOrders(mappedOrders);
+        }
+      }
+
+      // 3. Sync Wallet Live (Instant Wallet update on staff refund / debit / credit)
+      if (walletRes?.ok) {
+        const wData = walletRes.data?.data || walletRes.data;
+        if (wData?.wallet_balance !== undefined) {
+          const newBal = Number(wData.wallet_balance);
+          if (prevWalletRef.current !== null && !isInitial && newBal !== prevWalletRef.current) {
+            if (newBal > prevWalletRef.current) {
+              const diff = (newBal - prevWalletRef.current).toFixed(2);
+              showToast('Wallet Credited 💳', `₹${diff} added to your wallet! Current balance: ₹${newBal}`, 'success');
+            }
+          }
+          prevWalletRef.current = newBal;
+          setWalletBalance(newBal);
+
+          const history = wData.transactions || wData.wallet_history || [];
+          if (Array.isArray(history)) {
+            const mappedHistory = history.map((th) => ({
+              id: `TXN-${th.id}`,
+              type: th.type,
+              amount: Number(th.amount),
+              title: th.description || (th.type === 'credit' ? 'Wallet Top-up' : 'Canteen Order'),
+              description: th.type === 'credit' ? 'Added via Online Payment / Refund' : 'Deducted for Pre-Order',
+              date: th.created_at ? new Date(th.created_at).toLocaleDateString() : 'Today',
+              status: 'Success'
+            }));
+            setTransactions(mappedHistory);
+          }
+        }
+      }
+
+      // 4. Banner Live Sync
+      if (bannerRes?.ok && bannerRes.data) {
+        setBanner(bannerRes.data);
+      }
+    } catch (err) {
+      console.warn('[LiveSync] Background sync error:', err);
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, [showToast]);
+
+  // Synchronize full profile state with Backend
   const syncBackendData = async () => {
     try {
       let profilePromise = Promise.resolve(null);
-      let walletPromise = Promise.resolve(null);
-      let ordersPromise = Promise.resolve(null);
-
       if (getStoredToken()) {
         profilePromise = apiGetProfile();
-        walletPromise = apiGetWallet();
-        ordersPromise = apiGetOrderList();
       }
 
-      const [profileRes, walletRes, ordersRes, prodRes, catRes, bannerRes] = await Promise.all([
+      const [profileRes] = await Promise.all([
         profilePromise,
-        walletPromise,
-        ordersPromise,
-        apiGetAllProducts().catch(() => null),
-        apiGetCategories().catch(() => null),
-        apiGetBanner().catch(() => null)
+        syncLiveStatus(true)
       ]);
 
-      // 0. Sync Profile Data
+      // Sync Profile Data
       if (profileRes?.ok && profileRes?.data) {
         const profile = profileRes.data.student || profileRes.data.profile || profileRes.data.user || profileRes.data;
         
@@ -274,91 +608,12 @@ export const CanteenProvider = ({ children }) => {
           return updated;
         });
       }
-
-      // 1. Wallet & Ledger
-      const wData = walletRes?.data?.data || walletRes?.data;
-      if (walletRes?.ok && wData?.wallet_balance !== undefined) {
-        setWalletBalance(Number(wData.wallet_balance));
-        
-        const history = wData.transactions || wData.wallet_history || [];
-        if (Array.isArray(history) && history.length > 0) {
-          const mappedHistory = history.map((th) => ({
-            id: `TXN-${th.id}`,
-            type: th.type,
-            amount: Number(th.amount),
-            title: th.description || (th.type === 'credit' ? 'Wallet Top-up' : 'Canteen Order'),
-            description: th.type === 'credit' ? 'Added via Online Payment' : 'Deducted for Pre-Order',
-            date: th.created_at ? new Date(th.created_at).toLocaleDateString() : 'Today',
-            status: 'Success'
-          }));
-          setTransactions(mappedHistory);
-        } else {
-          setTransactions([]);
-        }
-      }
-
-      // 2. Orders List
-      const ordersArray = ordersRes?.data?.data?.orders || ordersRes?.data?.orders || [];
-      if (ordersRes?.ok && Array.isArray(ordersArray)) {
-        const mappedOrders = ordersArray.map((o, idx) => {
-          let items = [];
-          try {
-            if (o.items && Array.isArray(o.items)) {
-              items = o.items.map(i => ({
-                name: i.menuItem?.name || 'Meal Item',
-                quantity: i.quantity,
-                price: Number(i.unit_price || 0)
-              }));
-            } else {
-              items = typeof o.product_details === 'string' ? JSON.parse(o.product_details) : o.product_details;
-            }
-          } catch (e) {
-            items = [{ name: 'Meal Item', quantity: o.product_count || 1, price: Number(o.total_amount) }];
-          }
-          return {
-            id: o.id || o.order_id,
-            tokenNumber: `TK-${(o.id || o.order_id || idx + 10).toString().slice(-2)}`,
-            items: Array.isArray(items) ? items : [items],
-            totalAmount: Number(o.grand_amount || o.total_amount || 0),
-            preOrderDate: (new Date(o.pickup_time || o.created_at || Date.now())).toLocaleDateString(),
-            breakSlot: o.note || 'Lunch Break (1:15 PM)',
-            status: (o.status === 'pending' || o.order_status === 'Pending') ? 'Scheduled' : (o.status || o.order_status),
-            pickupNote: o.student 
-              ? `Student: ${o.student.name} (${o.student.class}-${o.student.section}, Roll #${o.student.roll})` 
-              : `Student: Student`,
-            createdAt: o.created_at || o.order_time || 'Recent'
-          };
-        });
-        if (mappedOrders.length > 0) {
-          setOrders(mappedOrders);
-        } else {
-          setOrders([]);
-        }
-      }
-
-      // 3. Products
-      if (prodRes?.ok && Array.isArray(prodRes?.data)) {
-        setBackendProducts(prodRes.data);
-        setIsBackendConnected(true);
-      } else if (prodRes !== null) {
-        setIsBackendConnected(false);
-      }
-
-      // 4. Categories
-      if (catRes?.ok && Array.isArray(catRes?.data?.category)) {
-        setBackendCategories(catRes.data.category);
-      }
-
-      // 5. Banner
-      if (bannerRes?.ok && bannerRes.data) {
-        setBanner(bannerRes.data);
-      }
     } catch (err) {
       console.warn('Backend sync warning:', err);
     }
   };
 
-  // Connect & Sync with Laravel Backend on mount
+  // Connect & Real-time Live Polling Engine
   useEffect(() => {
     const initBackend = async () => {
       try {
@@ -374,19 +629,47 @@ export const CanteenProvider = ({ children }) => {
 
     initBackend();
 
+    // Periodic live sync every 3.5 seconds
+    const interval = setInterval(() => {
+      syncLiveStatus(false);
+    }, 3500);
+
+    // Instant sync on app visibility change, window focus, or network online
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncLiveStatus(false);
+      }
+    };
+    const handleFocus = () => {
+      syncLiveStatus(false);
+    };
+    const handleOnline = () => {
+      syncLiveStatus(false);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+
     const handleAuthExpired = () => {
       setStudent(null);
       setAdminUser(null);
       setAuthStep('phone');
       showToast('Session Expired', 'Please log in again.', 'error');
-      // If we are on a nested admin route like /menu, push them back to root
       if (window.location.pathname !== '/') {
         window.location.href = '/';
       }
     };
     window.addEventListener('auth:expired', handleAuthExpired);
-    return () => window.removeEventListener('auth:expired', handleAuthExpired);
-  }, []);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('auth:expired', handleAuthExpired);
+    };
+  }, [syncLiveStatus, showToast]);
 
   const refreshBanner = async () => {
     try {
@@ -406,24 +689,16 @@ export const CanteenProvider = ({ children }) => {
       const isHealthy = await checkBackendHealth();
       setIsBackendConnected(isHealthy);
       if (!isHealthy) {
-        showToast('Backend Unreachable ⚠️', `Could not reach ${getApiBase()}. Verify Laravel dev server is running on port 8000.`, 'error');
+        showToast('Backend Unreachable ⚠️', `Could not reach ${getApiBase()}.`, 'error');
         return false;
       }
       await syncBackendData();
-      showToast('Live Request Successful! 🚀', `Synced products, wallet (₹${walletBalance}) & orders from Laravel API.`);
+      showToast('Live Request Successful! 🚀', `Synced products, wallet (₹${walletBalance}) & orders.`);
       return true;
     } catch (err) {
       showToast('API Request Failed', err.message, 'error');
       return false;
     }
-  };
-
-  // Show banner alert
-  const showToast = (title, message, type = 'success') => {
-    setNotification({ title, message, type, id: Date.now() });
-    setTimeout(() => {
-      setNotification(null);
-    }, 4500);
   };
 
   // Cart actions
@@ -435,7 +710,6 @@ export const CanteenProvider = ({ children }) => {
       }
       return [...prev, { ...item, quantity: 1 }];
     });
-    showToast('Added to Pre-Order Cart', `${item.name} for ${breakSlot === 'recess' ? 'Morning Recess' : 'Lunch Break'}`);
   };
 
   const removeFromCart = (itemId) => {
@@ -456,7 +730,12 @@ export const CanteenProvider = ({ children }) => {
     );
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY_CART);
+    } catch (e) {}
+  };
 
   const cartTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * item.quantity, 0);
   const cartMrpTotal = cart.reduce((sum, item) => {
@@ -587,6 +866,11 @@ export const CanteenProvider = ({ children }) => {
   const placePreOrder = async (overrideAddress = null) => {
     if (cart.length === 0) return false;
 
+    if (cartTotal >= 5000) {
+      showToast('Cart Limit Exceeded ⚠️', 'Cart value exceeds limit. You can only place orders less than ₹5000.', 'error');
+      return false;
+    }
+
     if (walletBalance < cartTotal) {
       showToast('Insufficient Wallet Balance ⚠️', `Please top up ₹${cartTotal - walletBalance} to complete this order.`, 'error');
       setIsRechargeOpen(true);
@@ -607,20 +891,18 @@ export const CanteenProvider = ({ children }) => {
     let orderId = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
     const tokenNo = `TK-${Math.floor(10 + Math.random() * 90)}`;
 
-    // If backend is live, send real HTTP POST /api/order-store
-    if (isBackendConnected) {
+    // If backend is live or user is logged in, send real HTTP POST /api/v1/orders
+    if (isBackendConnected || getStoredToken()) {
       try {
         const orderPayload = {
           product_details: JSON.stringify(cart.map((c) => ({
-            id: c.id,
+            id: c.backendId || c.id,
+            backendId: c.backendId || c.id,
             name: c.name,
             price: c.price,
             quantity: c.quantity
           }))),
           total_amount: orderTotal,
-          coupon_code: '',
-          coupon_discount: 0,
-          grand_amount: orderTotal,
           user_address: addressText,
           note: addressText,
           delivery_address: currentAddr,
@@ -628,13 +910,25 @@ export const CanteenProvider = ({ children }) => {
         };
 
         const res = await apiStoreOrder(orderPayload);
-        if (res.ok && res.data?.order_id) {
-          orderId = res.data.order_id;
-          // Refresh wallet and orders from backend
-          await syncBackendData();
+        if (res.ok) {
+          const backendId = res.data?.id || res.data?.order_id || res.data?.data?.id;
+          if (backendId) {
+            orderId = backendId;
+          }
+          // Immediate live refresh from backend
+          await syncLiveStatus(true);
+          const errorMsg =
+            res.data?.data?.[0]?.message ||
+            res.data?.message ||
+            res.error ||
+            'Server could not process your order. Please check wallet balance.';
+          showToast('Order Failed ⚠️', errorMsg, 'error');
+          return false;
         }
       } catch (err) {
         console.warn('Backend order store error:', err);
+        showToast('Order Failed ⚠️', err.message || 'Could not connect to backend server.', 'error');
+        return false;
       }
     }
 
@@ -782,7 +1076,6 @@ export const CanteenProvider = ({ children }) => {
       if (res.ok && res.data?.admin) {
         setAdminUser(res.data.admin);
         setAuthStep('admin-dashboard');
-        showToast('Admin Logged In', `Welcome, ${res.data.admin.name}`);
         return { success: true };
       } else {
         const err = res.data?.message || res.error || 'Invalid credentials.';
@@ -810,7 +1103,6 @@ export const CanteenProvider = ({ children }) => {
 
         if (res.data.is_new_user) {
           setAuthStep('profile');
-          showToast('OTP Verified! 🎓', 'Please complete your student profile.');
         } else {
           const profile = res.data.student || res.data.profile || res.data.user || {};
           const stu = {
@@ -837,7 +1129,7 @@ export const CanteenProvider = ({ children }) => {
           localStorage.removeItem(STORAGE_KEY_ORDERS);
           localStorage.removeItem(STORAGE_KEY_WALLET);
           localStorage.removeItem(STORAGE_KEY_TRANSACTIONS);
-          showToast('Welcome Back! 👋', `Logged in as ${stu.name}`);
+          localStorage.removeItem(STORAGE_KEY_CART);
           await syncBackendData();
         }
         return true;
@@ -887,7 +1179,6 @@ export const CanteenProvider = ({ children }) => {
           colors: ['#4e8d5a', '#cca95f']
         });
 
-        showToast('Welcome to Mapstreak! 🎒', `Account created for ${newStudent.name}. Profile linked to school canteen.`);
         await syncBackendData();
         return true;
       } else {
@@ -917,6 +1208,7 @@ export const CanteenProvider = ({ children }) => {
       localStorage.removeItem(STORAGE_KEY_ORDERS);
       localStorage.removeItem(STORAGE_KEY_WALLET);
       localStorage.removeItem(STORAGE_KEY_TRANSACTIONS);
+      localStorage.removeItem(STORAGE_KEY_CART);
       showToast('Signed Out', 'You have been signed out.');
     } catch (e) {
       console.error(e);
@@ -1020,7 +1312,8 @@ export const CanteenProvider = ({ children }) => {
         isServerSettingsOpen,
         setIsServerSettingsOpen,
         notification,
-        showToast
+        showToast,
+        dismissToast
       }}
     >
       {children}

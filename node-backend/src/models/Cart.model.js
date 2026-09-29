@@ -22,10 +22,10 @@ const Cart = sequelize.define('Cart', {
     onDelete:   'CASCADE',
   },
   quantity: {
-    type:      DataTypes.TINYINT.UNSIGNED,
+    type:      DataTypes.INTEGER.UNSIGNED,
     allowNull: false,
     defaultValue: 1,
-    validate:  { min: 1, max: 20 },
+    validate:  { min: 1, max: 500 },
   },
 }, {
   tableName: 'carts',

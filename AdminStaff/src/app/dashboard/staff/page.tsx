@@ -16,8 +16,7 @@ import {
   Utensils,
   Users,
   Building2,
-  Image as ImageIcon,
-  BarChart3
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface SectionDef {
@@ -35,7 +34,6 @@ const AVAILABLE_SECTIONS: SectionDef[] = [
   { id: 'students', name: 'Students & Wallets', desc: 'Manage students, view profiles & recharge wallets', icon: Users },
   { id: 'schools', name: 'Schools', desc: 'Manage campus schools & view registered students', icon: Building2 },
   { id: 'banner', name: 'App Banner', desc: 'Update mobile app promotional banners', icon: ImageIcon },
-  { id: 'reports', name: 'Reports', desc: 'Financial reports & breakdown statistics', icon: BarChart3 },
 ];
 
 export default function StaffPage() {

@@ -23,7 +23,7 @@ export const StudentIdView = () => {
   if (!student) return null;
 
   return (
-    <div className="pb-28 px-4 pt-3 space-y-3.5">
+    <div className="pb-32 px-4 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+0.5rem))] space-y-3.5">
       {/* Title & Badge */}
       <div className="flex items-center gap-3">
         <button 

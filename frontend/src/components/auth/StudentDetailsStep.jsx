@@ -48,7 +48,7 @@ export const StudentDetailsStep = () => {
   const previewId = `STU-${selectedClass.replace('Class ', '')}${selectedSection}-${rollNo || '00'}`;
 
   return (
-    <div className="flex-1 flex flex-col justify-center px-4 py-6 bg-gradient-to-b from-leaf-50 via-white to-gold-50/40 text-gray-900 overflow-y-auto">
+    <div className="flex-1 flex flex-col justify-center px-4 pt-[max(1.5rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))] bg-gradient-to-b from-leaf-50 via-white to-gold-50/40 text-gray-900 overflow-y-auto">
       <div className="max-w-md mx-auto w-full space-y-4">
 
         {/* Header */}

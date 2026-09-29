@@ -15,7 +15,7 @@ router.post(
   '/',
   [
     body('item_id').isInt({ min: 1 }).withMessage('Valid item_id required'),
-    body('quantity').isInt({ min: 1, max: 20 }).withMessage('Quantity must be between 1 and 20'),
+    body('quantity').isInt({ min: 1, max: 500 }).withMessage('Quantity must be between 1 and 500'),
   ],
   validate,
   ctrl.upsertItem

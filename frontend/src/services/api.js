@@ -297,7 +297,7 @@ export const apiGetProfile = async () => {
 
 export const apiGetWallet = async () => {
   try {
-    const res = await safeFetch('/wallet', { method: 'GET' }, true);
+    const res = await safeFetch(`/wallet?_t=${Date.now()}`, { method: 'GET' }, true);
     const data = await safeJson(res);
     return { ok: res.ok, data };
   } catch (err) {
@@ -307,7 +307,7 @@ export const apiGetWallet = async () => {
 
 export const apiGetOrderList = async () => {
   try {
-    const res = await safeFetch('/orders', { method: 'GET' }, true);
+    const res = await safeFetch(`/orders?_t=${Date.now()}`, { method: 'GET' }, true);
     const data = await safeJson(res);
     return { ok: res.ok, data };
   } catch (err) {
@@ -325,7 +325,7 @@ export const apiGetCategories = async () => {
 
 export const apiGetBanner = async () => {
   try {
-    const res = await safeFetch('/banner', { method: 'GET' }, false);
+    const res = await safeFetch(`/banner?_t=${Date.now()}`, { method: 'GET' }, false);
     const json = await safeJson(res);
     return { ok: res.ok, data: json.data || json };
   } catch (err) {
@@ -335,7 +335,7 @@ export const apiGetBanner = async () => {
 
 export const apiGetAllProducts = async () => {
   try {
-    const res = await safeFetch('/menu?limit=100', { method: 'GET' }, true);
+    const res = await safeFetch(`/menu?limit=100&_t=${Date.now()}`, { method: 'GET' }, false);
     const json = await safeJson(res);
     // Our Node backend wraps responses in { success: true, data: { items: [...] } }
     let items = [];
@@ -358,13 +358,20 @@ export const apiStoreOrder = async (orderPayload) => {
   try {
     let items = [];
     try {
-      const products = JSON.parse(orderPayload.product_details || '[]');
-      items = products.map(p => ({ item_id: p.backendId || p.id, quantity: p.quantity })).filter(i => i.item_id);
+      const products = typeof orderPayload.product_details === 'string'
+        ? JSON.parse(orderPayload.product_details || '[]')
+        : (orderPayload.product_details || []);
+      items = products
+        .map(p => ({
+          item_id: parseInt(p.backendId || p.id, 10),
+          quantity: parseInt(p.quantity, 10) || 1
+        }))
+        .filter(i => !isNaN(i.item_id) && i.item_id > 0);
     } catch(e) {}
     
     const nodePayload = {
       items,
-      note: orderPayload.note || orderPayload.user_address || 'Pre-order via Canteen App',
+      note: String(orderPayload.note || orderPayload.user_address || 'Pre-order via Canteen App').slice(0, 280),
       pickupTime: new Date(Date.now() + 3600000).toISOString() // 1 hour from now as fallback
     };
 

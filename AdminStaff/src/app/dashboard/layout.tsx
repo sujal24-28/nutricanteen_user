@@ -14,7 +14,6 @@ import {
   UserCog,
   Building2,
   Image as ImageIcon,
-  BarChart3,
   Lock,
   ShieldCheck,
   ShieldAlert
@@ -69,7 +68,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { id: 'students', name: 'Students & Wallets', href: '/dashboard/students', icon: <Users className="w-5 h-5 mr-3" /> },
       { id: 'schools', name: 'Schools', href: '/dashboard/schools', icon: <Building2 className="w-5 h-5 mr-3" /> },
       { id: 'banner', name: 'App Banner', href: '/dashboard/banner', icon: <ImageIcon className="w-5 h-5 mr-3" /> },
-      { id: 'reports', name: 'Reports', href: '/dashboard/reports', icon: <BarChart3 className="w-5 h-5 mr-3" /> },
       { id: 'staff', name: 'Staff & Roles', href: '/dashboard/staff', icon: <UserCog className="w-5 h-5 mr-3" />, superAdminOnly: true },
     ],
     []
@@ -96,7 +94,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (pathname.startsWith('/dashboard/students')) return 'students';
     if (pathname.startsWith('/dashboard/schools')) return 'schools';
     if (pathname.startsWith('/dashboard/banner')) return 'banner';
-    if (pathname.startsWith('/dashboard/reports')) return 'reports';
     if (pathname.startsWith('/dashboard/staff')) return 'staff';
     if (pathname === '/dashboard') return 'dashboard';
     return null;

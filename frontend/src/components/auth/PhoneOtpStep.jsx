@@ -103,7 +103,7 @@ export const PhoneOtpStep = () => {
   };
 
   return (
-    <div className="relative flex-1 flex flex-col justify-center px-6 py-8 bg-gradient-to-b from-leaf-50 via-white to-gold-50/50 text-gray-900 overflow-y-auto">
+    <div className="relative flex-1 flex flex-col justify-center px-6 pt-[max(2rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(2rem,calc(env(safe-area-inset-bottom,0px)+1rem))] bg-gradient-to-b from-leaf-50 via-white to-gold-50/50 text-gray-900 overflow-y-auto">
 
       {/* Brand Header */}
       <div className="text-center mb-6 shrink-0 mt-4">

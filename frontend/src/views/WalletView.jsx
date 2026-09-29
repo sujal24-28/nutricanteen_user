@@ -6,7 +6,7 @@ export const WalletView = () => {
   const { walletBalance, transactions, setIsRechargeOpen, student } = useCanteen();
 
   return (
-    <div className="pb-28 pt-3 px-4 space-y-3.5">
+    <div className="pb-32 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+0.5rem))] px-4 space-y-3.5">
       {/* 1. Soft Warm Champagne Student Prepaid Canteen Card */}
       <div className="rounded-3xl bg-gradient-to-tr from-gold-200 via-gold-100 to-amber-50 dark:from-gold-950/80 dark:via-gold-900/60 dark:to-leaf-950 p-5 text-gold-950 dark:text-gold-100 shadow-sm border border-gold-300/80 dark:border-gold-800/80 relative overflow-hidden">
         {/* Subtle decorative glow */}

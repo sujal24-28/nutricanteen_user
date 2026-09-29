@@ -30,10 +30,12 @@ const MENU_ATTRIBUTES = [
  */
 const listItems = async (query = {}) => {
   const { page, limit, offset } = parsePagination(query);
-
+  const bypassCache = !!query.t || !!query._t || !!query.nocache;
   const cacheKey = `cache:menu:list:${query.available || 'true'}:${query.category || 'all'}:${query.search || 'none'}:${page}:${limit}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return cached;
+  if (!bypassCache) {
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
+  }
 
   const where = {};
   if (query.available !== 'false') where.is_available = true;

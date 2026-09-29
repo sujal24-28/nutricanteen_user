@@ -15,15 +15,15 @@ router.post(
     body('pickupTime').optional().isISO8601().withMessage('pickupTime must be a valid ISO date'),
     body('note').optional().trim().isLength({ max: 300 }).withMessage('Note too long'),
     // Validate optional items array (bypass-cart mode)
-    body('items').optional().isArray({ max: 20 }).withMessage('items must be an array with at most 20 entries'),
+    body('items').optional().isArray({ max: 100 }).withMessage('items must be an array with at most 100 entries'),
     body('items.*.item_id')
       .if(body('items').exists())
       .isInt({ min: 1 })
       .withMessage('Each item must have a valid integer item_id'),
     body('items.*.quantity')
       .if(body('items').exists())
-      .isInt({ min: 1, max: 50 })
-      .withMessage('Each item quantity must be between 1 and 50'),
+      .isInt({ min: 1, max: 500 })
+      .withMessage('Each item quantity must be between 1 and 500'),
   ],
   validate,
   ctrl.placeOrder

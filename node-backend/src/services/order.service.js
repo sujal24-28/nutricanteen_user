@@ -57,6 +57,12 @@ const placeOrder = async (studentId, { pickupTime, note, items = null } = {}) =>
   );
   const total = totalPaise / 100;  // safe 2dp number for storage
 
+  if (total >= 5000) {
+    const err = new Error('Cart value exceeds limit. You can only place orders less than ₹5000.');
+    err.statusCode = 400;
+    throw err;
+  }
+
   let createdOrder;
 
   await sequelize.transaction(async (t) => {

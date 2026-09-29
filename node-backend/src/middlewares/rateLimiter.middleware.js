@@ -72,10 +72,15 @@ const searchLimiter = rateLimit({
 /** General API limiter */
 const apiLimiter = rateLimit({
   windowMs:        15 * 60 * 1000,
-  max:             300,
+  max:             process.env.NODE_ENV === 'production' ? 5000 : 50000,
   standardHeaders: true,
   legacyHeaders:   false,
   store:           makeStore('rl:api:'),
+  skip: (req) => {
+    // Never rate-limit in development mode or localhost polling
+    if (process.env.NODE_ENV !== 'production') return true;
+    return false;
+  },
   handler:         (_req, res) =>
     errorResponse(res, 'Too many requests, please slow down.', 429),
 });

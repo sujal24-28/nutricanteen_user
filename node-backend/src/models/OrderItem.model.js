@@ -21,7 +21,7 @@ const OrderItem = sequelize.define('OrderItem', {
     references: { model: 'menu_items', key: 'id' },
   },
   quantity: {
-    type:      DataTypes.TINYINT.UNSIGNED,
+    type:      DataTypes.INTEGER.UNSIGNED,
     allowNull: false,
   },
   unit_price: {
