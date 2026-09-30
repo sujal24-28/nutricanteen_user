@@ -8,9 +8,8 @@ const logger = require('../utils/logger.util');
  */
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
-  logger.error(`${req.method} ${req.originalUrl} — ${err.message}`, {
-    stack: err.stack,
-  });
+  // Log detailed error information alongside user details to dedicated error log
+  logger.logError(err, req);
 
   // Sequelize validation error
   if (err.name === 'SequelizeValidationError' || err.name === 'SequelizeUniqueConstraintError') {

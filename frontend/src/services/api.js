@@ -287,7 +287,7 @@ export const apiVerifyOtp = async (phone, otp) => {
 
 export const apiGetProfile = async () => {
   try {
-    const res = await safeFetch('/student/profile', { method: 'GET' }, true);
+    const res = await safeFetch(`/student/profile?_t=${Date.now()}`, { method: 'GET' }, true);
     const data = await safeJson(res);
     return { ok: res.ok, data };
   } catch (err) {
@@ -320,7 +320,13 @@ export const apiGetCities = async () => {
 };
 
 export const apiGetCategories = async () => {
-  return { ok: true, data: [] };
+  try {
+    const res = await safeFetch(`/categories?_t=${Date.now()}`, { method: 'GET' }, false);
+    const json = await safeJson(res);
+    return { ok: res.ok, data: json.data || [] };
+  } catch (err) {
+    return { ok: false, error: err.message, data: [] };
+  }
 };
 
 export const apiGetBanner = async () => {

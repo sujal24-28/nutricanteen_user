@@ -24,14 +24,23 @@ const protect = async (req, res, next) => {
     // Re-validate student in DB to catch deactivated/deleted students immediately
     const { Student } = require('../models');
     const student = await Student.findByPk(decoded.id, {
-      attributes: ['id', 'is_active'],
+      attributes: ['id', 'is_active', 'name', 'phone', 'class', 'section', 'roll', 'school_id'],
     });
 
     if (!student || !student.is_active) {
       return errorResponse(res, 'Account not found or deactivated', 401);
     }
 
-    req.user = { id: student.id, role: 'student' };
+    req.user = {
+      id: student.id,
+      role: 'student',
+      name: student.name,
+      phone: student.phone,
+      class: student.class,
+      section: student.section,
+      roll: student.roll,
+      school_id: student.school_id,
+    };
     return next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -68,7 +77,7 @@ const protectAdmin = async (req, res, next) => {
     // Import lazily to avoid circular-dependency issues at startup
     const { Admin } = require('../models');
     const admin = await Admin.findByPk(decoded.id, {
-      attributes: ['id', 'role', 'is_active'],
+      attributes: ['id', 'role', 'is_active', 'name', 'email', 'phone'],
     });
 
     if (!admin || !admin.is_active) {
@@ -80,7 +89,13 @@ const protectAdmin = async (req, res, next) => {
       return errorResponse(res, 'Admin access required', 403);
     }
 
-    req.user = { id: admin.id, role: admin.role };
+    req.user = {
+      id: admin.id,
+      role: admin.role,
+      name: admin.name,
+      email: admin.email,
+      phone: admin.phone,
+    };
     return next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -108,18 +123,37 @@ const protectAny = async (req, res, next) => {
 
     if (decoded.role === 'student') {
       const { Student } = require('../models');
-      const student = await Student.findByPk(decoded.id, { attributes: ['id', 'is_active'] });
+      const student = await Student.findByPk(decoded.id, {
+        attributes: ['id', 'is_active', 'name', 'phone', 'class', 'section', 'roll', 'school_id'],
+      });
       if (!student || !student.is_active) {
         return errorResponse(res, 'Account not found or deactivated', 401);
       }
-      req.user = { id: student.id, role: 'student' };
+      req.user = {
+        id: student.id,
+        role: 'student',
+        name: student.name,
+        phone: student.phone,
+        class: student.class,
+        section: student.section,
+        roll: student.roll,
+        school_id: student.school_id,
+      };
     } else {
       const { Admin } = require('../models');
-      const admin = await Admin.findByPk(decoded.id, { attributes: ['id', 'role', 'is_active'] });
+      const admin = await Admin.findByPk(decoded.id, {
+        attributes: ['id', 'role', 'is_active', 'name', 'email', 'phone'],
+      });
       if (!admin || !admin.is_active || !['superadmin', 'staff'].includes(admin.role)) {
         return errorResponse(res, 'Account not found or deactivated', 401);
       }
-      req.user = { id: admin.id, role: admin.role };
+      req.user = {
+        id: admin.id,
+        role: admin.role,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+      };
     }
 
     return next();

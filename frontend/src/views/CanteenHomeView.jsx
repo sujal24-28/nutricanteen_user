@@ -19,7 +19,7 @@ const DEFAULT_BANNERS = [
   {
     id: 'default-2',
     imageUrl: 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?auto=format&fit=crop&q=80&w=1200',
-    title: 'Healthy Campus Bites',
+    title: 'Healthy School Meals',
     subtitle: 'Balanced nutrition for energy all school day!',
   },
   {
@@ -204,9 +204,14 @@ export const CanteenHomeView = () => {
               <span className="font-extrabold text-sm tracking-tight text-leaf-900 dark:text-leaf-100">
                 Map<span className="text-gold-700 dark:text-gold-400">streak</span>
               </span>
+              {student?.schoolName && (
+                <span className="bg-leaf-100 dark:bg-leaf-900/60 text-leaf-800 dark:text-leaf-200 border border-leaf-200 dark:border-leaf-800 text-[10px] font-bold px-2 py-0.5 rounded-full truncate max-w-[120px] sm:max-w-[160px]">
+                  {student.schoolName}
+                </span>
+              )}
             </div>
             <p className="text-[10px] text-gray-500 dark:text-leaf-300/70 font-medium truncate max-w-[180px] sm:max-w-[260px]">
-              {student ? `${student.name} • ${student.className?.replace('Class ', '') || '10'}-${student.section || 'B'} #${student.rollNo || '24'}` : 'School Canteen'}
+              {student ? `${student.name} • ${student.className?.replace('Class ', '') || '10'}-${student.section || 'B'} #${student.rollNo || '24'}` : (student?.schoolName || 'School Canteen')}
             </p>
           </div>
         </div>

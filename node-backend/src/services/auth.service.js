@@ -4,7 +4,7 @@ const bcrypt      = require('bcryptjs');
 const crypto      = require('crypto');
 const { Op }      = require('sequelize');
 
-const { Student, Admin, OtpRecord, RefreshToken } = require('../models');
+const { Student, Admin, OtpRecord, RefreshToken, School } = require('../models');
 const { generateOtp, hashOtp, compareOtp }        = require('../utils/otp.util');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../utils/jwt.util');
 const { sendOtpViaMSG91 } = require('../utils/msg91.util');
@@ -51,7 +51,10 @@ const registerStudent = async ({ name, studentClass, roll, section, phone, schoo
       avatar: null,
       wallet_balance: 0.00,
     });
-    return sanitizeStudent(student);
+    const withSchool = await Student.findByPk(student.id, {
+      include: [{ model: School, as: 'school', attributes: ['id', 'name', 'address'] }]
+    });
+    return sanitizeStudent(withSchool || student);
   } catch (dbErr) {
     // Handle race-condition duplicate inserts
     if (dbErr.name === 'SequelizeUniqueConstraintError') {
@@ -135,7 +138,10 @@ const sendStudentOtp = async (phone) => {
  * Verify student OTP and issue tokens.
  */
 const verifyStudentOtp = async (phone, otp) => {
-  const student = await Student.findOne({ where: { phone } });
+  const student = await Student.findOne({
+    where: { phone },
+    include: [{ model: School, as: 'school', attributes: ['id', 'name', 'address'] }]
+  });
   if (!student) {
     const err = new Error('Student not found');
     err.statusCode = 404;
@@ -329,6 +335,9 @@ const sanitizeStudent = (s) => ({
   avatar:         s.avatar,
   wallet_balance: parseRupees(s.wallet_balance),
   is_active:      s.is_active,
+  school_id:      s.school_id || null,
+  school_name:    s.school?.name || null,
+  school:         s.school ? { id: s.school.id, name: s.school.name, address: s.school.address } : null,
   created_at:     s.created_at,
 });
 

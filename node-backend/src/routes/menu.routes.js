@@ -40,6 +40,19 @@ router.put(
   ctrl.updateItem
 );
 
+router.patch(
+  '/:id',
+  protectAdmin,
+  upload.single('image'),
+  [
+    param('id').isInt().withMessage('Invalid ID'),
+    body('price').optional({ checkFalsy: true }).isFloat({ min: 0 }),
+    body('daily_limit').optional({ checkFalsy: true }).isInt({ min: 1 }),
+  ],
+  validate,
+  ctrl.updateItem
+);
+
 router.delete(
   '/:id',
   protectAdmin,

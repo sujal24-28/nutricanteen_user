@@ -63,27 +63,45 @@ export const MenuCard = ({ item }) => {
       : Number((mrp - sellingPrice).toFixed(1))
     : 0;
 
+  const isOutOfStock = item.is_available === false || item.isAvailable === false;
+
   // Ensure first letter of the name is always capitalized
   const rawName = (item.name || '').trim();
   const displayName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : '';
 
   return (
-    <div className="bg-white dark:bg-leaf-950/70 rounded-2xl p-3 border border-leaf-100 dark:border-leaf-800/60 shadow-xs hover:shadow-sm transition-all flex gap-3 relative overflow-hidden group">
-      {/* Discount Amount Badge in top-right corner */}
-      {hasDiscount && discountAmount > 0 && (
+    <div className={`bg-white dark:bg-leaf-950/70 rounded-2xl p-3 border shadow-xs hover:shadow-sm transition-all flex gap-3 relative overflow-hidden group ${
+      isOutOfStock ? 'border-gray-200 dark:border-leaf-900/40 opacity-90' : 'border-leaf-100 dark:border-leaf-800/60'
+    }`}>
+      {/* Out of Stock or Discount Badge in top-right corner */}
+      {isOutOfStock ? (
+        <span className="absolute top-2.5 right-2.5 z-10 bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-xs tracking-wide flex items-center gap-1 uppercase">
+          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          Out of Stock
+        </span>
+      ) : hasDiscount && discountAmount > 0 ? (
         <span className="absolute top-2.5 right-2.5 z-10 bg-blue-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-xs tracking-wide">
           ₹{discountAmount} OFF
         </span>
-      )}
+      ) : null}
 
       {/* Product Image */}
       <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-leaf-50 dark:bg-leaf-900/40 flex-shrink-0 relative">
         <img
           src={imageUrl || 'https://ui-avatars.com/api/?name=Food&background=f3f4f6&color=9ca3af&size=200'}
           alt={displayName}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 text-xs font-bold text-gray-900 flex items-center justify-center p-2 text-center"
+          className={`w-full h-full object-cover transition-transform duration-300 text-xs font-bold text-gray-900 flex items-center justify-center p-2 text-center ${
+            isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'
+          }`}
           loading="lazy"
         />
+        {isOutOfStock && (
+          <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+            <span className="bg-red-600/90 text-white font-black text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm">
+              Out of Stock
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Details */}
@@ -125,7 +143,15 @@ export const MenuCard = ({ item }) => {
             </div>
           </div>
 
-          {quantity === 0 ? (
+          {isOutOfStock ? (
+            <button
+              disabled
+              type="button"
+              className="bg-gray-100 dark:bg-leaf-900/60 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-leaf-800 text-xs font-bold px-3 py-1.5 rounded-xl cursor-not-allowed select-none flex items-center gap-1"
+            >
+              <span>Out of Stock</span>
+            </button>
+          ) : quantity === 0 ? (
             <button
               onClick={() => addToCart(item)}
               className="bg-leaf-600 hover:bg-leaf-700 text-white dark:bg-leaf-700 dark:hover:bg-leaf-600 text-xs font-semibold px-3 py-1.5 rounded-xl shadow-xs hover:shadow active:scale-95 transition-all flex items-center gap-1 cursor-pointer"

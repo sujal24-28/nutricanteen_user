@@ -3,12 +3,10 @@
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
-const { Student, Admin, Order, WalletTransaction } = require('../models');
+const { Student, Admin, Order, WalletTransaction, School } = require('../models');
 const { parsePagination, paginationMeta } = require('../utils/pagination.util');
 const { addRupees, subRupees, parseRupees } = require('../utils/money.util');
 const { serializeStudent, serializeAdmin } = require('../utils/serializer.util');
-
-
 
 /**
  * List all students with optional search.
@@ -25,12 +23,14 @@ const listStudents = async (query) => {
       { section: { [Op.like]: `%${query.search}%` } },
     ];
   }
-  if (query.class)   where.class   = query.class;
-  if (query.section) where.section = query.section;
+  if (query.class)     where.class     = query.class;
+  if (query.section)   where.section   = query.section;
+  if (query.school_id) where.school_id = query.school_id;
 
   const { count, rows } = await Student.findAndCountAll({
     where,
-    attributes: ['id', 'name', 'class', 'roll', 'section', 'phone', 'wallet_balance', 'is_active', 'created_at'],
+    attributes: ['id', 'name', 'class', 'roll', 'section', 'phone', 'wallet_balance', 'is_active', 'school_id', 'created_at'],
+    include: [{ model: School, as: 'school', attributes: ['id', 'name', 'address'] }],
     order:      [['class', 'ASC'], ['section', 'ASC'], ['roll', 'ASC']],
     limit,
     offset,
@@ -40,11 +40,12 @@ const listStudents = async (query) => {
 };
 
 /**
- * Get a single student with their wallet summary.
+ * Get a single student with their wallet summary and school info.
  */
 const getStudent = async (studentId) => {
   const student = await Student.findByPk(studentId, {
-    attributes: ['id', 'name', 'class', 'roll', 'section', 'phone', 'wallet_balance', 'is_active'],
+    attributes: ['id', 'name', 'class', 'roll', 'section', 'phone', 'wallet_balance', 'is_active', 'school_id', 'created_at'],
+    include: [{ model: School, as: 'school', attributes: ['id', 'name', 'address'] }],
   });
   if (!student) {
     const err = new Error('Student not found');
@@ -58,7 +59,7 @@ const getStudent = async (studentId) => {
   });
 
   return {
-    ...student.toJSON(),
+    ...serializeStudent(student),
     order_count:  orderCount,
     total_spent:  parseRupees(totalSpent || 0),
   };
@@ -196,6 +197,34 @@ const createAdmin = async ({ name, email, password, role }) => {
 };
 
 /**
+ * Update student details (including school_id).
+ */
+const updateStudent = async (studentId, data) => {
+  const student = await Student.findByPk(studentId);
+  if (!student) {
+    const err = new Error('Student not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const { name, phone, class: cls, className, section, roll, rollNo, school_id, is_active } = data;
+  if (name !== undefined) student.name = name.trim();
+  if (phone !== undefined) student.phone = phone.trim();
+  if (cls || className) student.class = (cls || className).trim();
+  if (section !== undefined) student.section = section.trim();
+  if (roll || rollNo) student.roll = String(roll || rollNo).trim();
+  if (school_id !== undefined) student.school_id = school_id ? parseInt(school_id, 10) : null;
+  if (is_active !== undefined) student.is_active = Boolean(is_active);
+
+  await student.save();
+
+  const updated = await Student.findByPk(studentId, {
+    include: [{ model: School, as: 'school', attributes: ['id', 'name', 'address'] }]
+  });
+  return serializeStudent(updated);
+};
+
+/**
  * Delete a student (soft delete).
  */
 const deleteStudent = async (studentId) => {
@@ -212,6 +241,7 @@ const deleteStudent = async (studentId) => {
 module.exports = {
   listStudents,
   getStudent,
+  updateStudent,
   creditWallet,
   debitWallet,
   toggleStudentStatus,

@@ -65,7 +65,7 @@ export const StudentIdView = () => {
                 Official School Pass
               </span>
               <span className="text-xs font-bold text-gray-100 line-clamp-1">
-                {student.schoolName}
+                {student.schoolName || 'School Canteen'}
               </span>
             </div>
           </div>
@@ -157,7 +157,7 @@ export const StudentIdView = () => {
           </div>
           <div>
             <span className="text-xs font-bold text-gray-800 dark:text-gray-200 block">
-              {student.schoolName}
+              {student.schoolName || 'School Canteen'}
             </span>
             <span className="text-[11px] text-gray-500 dark:text-gray-400">
               Ground Floor, Main Dining Hall & Counters 1–4

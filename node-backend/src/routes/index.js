@@ -11,6 +11,7 @@ router.use('/orders',  require('./order.routes'));
 router.use('/admin',   require('./admin.routes'));
 router.use('/schools', require('./schools.routes'));
 router.use('/banner',  require('./banner.routes'));
+router.use('/categories', require('./category.routes'));
 
 router.get('/health', (_req, res) =>
   res.status(200).json({

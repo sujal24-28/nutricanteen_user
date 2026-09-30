@@ -42,7 +42,7 @@ export const Header = () => {
             </div>
             <p className="text-[11px] text-leaf-200 truncate max-w-[160px] font-medium flex items-center gap-1">
               <GraduationCap className="w-3 h-3 text-gold-400 inline" />
-              Roll #{student?.rollNo || '24'} • {student?.schoolName?.split('(')[0] || 'DPS'}
+              Roll #{student?.rollNo || '24'} • {student?.schoolName?.split('(')[0]?.trim() || 'School Canteen'}
             </p>
           </div>
         </button>

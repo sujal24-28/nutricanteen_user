@@ -10,6 +10,7 @@ import {
   apiGetOrderList,
   apiGetCities,
   apiGetCategories,
+  apiGetSchools,
   apiGetAllProducts,
   apiStoreOrder,
   apiCompleteProfile,
@@ -54,6 +55,16 @@ export const CanteenProvider = ({ children }) => {
   });
   const [backendCities, setBackendCities] = useState([]);
   const [backendCategories, setBackendCategories] = useState([]);
+  const [backendSchools, setBackendSchools] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nutricanteen_schools_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
 
   // 1. Student / Auth State
   const [student, setStudent] = useState(() => {
@@ -371,24 +382,46 @@ export const CanteenProvider = ({ children }) => {
     }
   }, [backendProducts]);
 
-  // Ensure default address exists if student is logged in and no address yet
+  // Ensure default address exists if student is logged in and sync addresses when school changes
   useEffect(() => {
     if (student) {
       setAddresses((prev) => {
-        if (prev && prev.length > 0) return prev;
-        const initial = {
-          id: 'addr_' + Date.now(),
-          studentName: student.name || 'Student',
-          schoolName: student.schoolName || 'Campus School',
-          className: (student.className || '10').replace('Class ', '').trim(),
-          section: (student.section || 'A').toUpperCase().trim(),
-          rollNo: (student.rollNo || '1').toString().trim()
-        };
-        setSelectedAddressId(initial.id);
-        return [initial];
+        if (!prev || prev.length === 0) {
+          const initial = {
+            id: 'addr_' + Date.now(),
+            studentName: student.name || 'Student',
+            schoolName: student.schoolName || 'School Canteen',
+            className: (student.className || '10').replace('Class ', '').trim(),
+            section: (student.section || 'A').toUpperCase().trim(),
+            rollNo: (student.rollNo || '1').toString().trim()
+          };
+          setSelectedAddressId(initial.id);
+          return [initial];
+        }
+
+        // When student's school is changed or updated, update all saved addresses
+        if (student.schoolName) {
+          let hasChange = false;
+          const updated = prev.map((addr) => {
+            if (
+              !addr.schoolName ||
+              addr.schoolName === 'Campus School' ||
+              addr.schoolName === 'Campus' ||
+              addr.schoolName === 'Campus Canteen' ||
+              addr.schoolName !== student.schoolName
+            ) {
+              hasChange = true;
+              return { ...addr, schoolName: student.schoolName };
+            }
+            return addr;
+          });
+          if (hasChange) return updated;
+        }
+
+        return prev;
       });
     }
-  }, [student]);
+  }, [student?.schoolName, student?.name]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_ADDRESSES, JSON.stringify(addresses));
@@ -420,7 +453,9 @@ export const CanteenProvider = ({ children }) => {
           dietaryTag: '',
           availableSlots: ['recess', 'lunch'],
           rating: 4.9,
-          isLiveBackend: true
+          isLiveBackend: true,
+          is_available: bp.is_available !== false && bp.is_available !== 'false' && bp.is_available !== 0 && bp.is_available !== '0',
+          isAvailable: bp.is_available !== false && bp.is_available !== 'false' && bp.is_available !== 0 && bp.is_available !== '0'
         };
       });
     }
@@ -462,14 +497,30 @@ export const CanteenProvider = ({ children }) => {
       const hasToken = !!getStoredToken();
       const promises = [
         apiGetAllProducts().catch(() => null),
-        apiGetBanner().catch(() => null)
+        apiGetBanner().catch(() => null),
+        apiGetCategories().catch(() => null),
+        apiGetSchools().catch(() => null)
       ];
       if (hasToken) {
         promises.push(apiGetOrderList().catch(() => null));
         promises.push(apiGetWallet().catch(() => null));
+        promises.push(apiGetProfile().catch(() => null));
       }
 
-      const [prodRes, bannerRes, ordersRes, walletRes] = await Promise.all(promises);
+      const [prodRes, bannerRes, catRes, schoolsRes, ordersRes, walletRes, profileRes] = await Promise.all(promises);
+
+      // Sync Categories Live
+      if (catRes?.ok && Array.isArray(catRes.data) && catRes.data.length > 0) {
+        setBackendCategories(catRes.data);
+      }
+
+      // Sync Schools Live
+      if (schoolsRes?.ok && Array.isArray(schoolsRes.data) && schoolsRes.data.length > 0) {
+        setBackendSchools(schoolsRes.data);
+        try {
+          localStorage.setItem('nutricanteen_schools_v2', JSON.stringify(schoolsRes.data));
+        } catch (e) {}
+      }
 
       // 1. Sync Menu Products Live (Instant Menu changes from Admin/Staff)
       if (prodRes?.ok && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
@@ -591,7 +642,44 @@ export const CanteenProvider = ({ children }) => {
         }
       }
 
-      // 4. Banner Live Sync
+      // 4. Sync Profile Live (Instant updates when admin changes student school, class, or name at runtime)
+      if (profileRes?.ok && profileRes.data) {
+        const raw = profileRes.data;
+        const profile = raw?.data || raw?.student || raw?.profile || raw?.user || raw;
+        const newSchoolName = profile.school_name || profile.school?.name || null;
+        const newSchoolId = profile.school_id !== undefined && profile.school_id !== null ? profile.school_id : profile.city_id;
+
+        setStudent((prev) => {
+          if (!prev) return prev;
+          const currentSchoolName = newSchoolName || prev.schoolName || 'School Canteen';
+          const currentSchoolId = newSchoolId !== undefined && newSchoolId !== null ? newSchoolId : prev.schoolId;
+
+          const schoolChanged = Boolean(newSchoolName && prev.schoolName !== newSchoolName);
+          const schoolIdChanged = Boolean(newSchoolId !== undefined && newSchoolId !== null && prev.schoolId !== newSchoolId);
+          const nameChanged = Boolean(profile.name && prev.name !== profile.name);
+          const classChanged = Boolean((profile.class || profile.class_name) && prev.className !== (profile.class || profile.class_name));
+          const sectionChanged = Boolean(profile.section && prev.section !== profile.section);
+          const rollChanged = Boolean((profile.roll || profile.roll_no) && String(prev.rollNo) !== String(profile.roll || profile.roll_no));
+
+          if (schoolChanged || schoolIdChanged || nameChanged || classChanged || sectionChanged || rollChanged) {
+            if (schoolChanged && !isInitial) {
+              showToast('School Updated 🏫', `School changed to ${currentSchoolName}`, 'info');
+            }
+            return {
+              ...prev,
+              name: profile.name || prev.name,
+              schoolId: currentSchoolId,
+              schoolName: currentSchoolName,
+              className: profile.class || profile.class_name || prev.className,
+              section: profile.section || prev.section,
+              rollNo: profile.roll || profile.roll_no || prev.rollNo,
+            };
+          }
+          return prev;
+        });
+      }
+
+      // 5. Banner Live Sync
       if (bannerRes?.ok && bannerRes.data) {
         setBanner(bannerRes.data);
       }
@@ -617,16 +705,19 @@ export const CanteenProvider = ({ children }) => {
 
       // Sync Profile Data
       if (profileRes?.ok && profileRes?.data) {
-        const profile = profileRes.data.student || profileRes.data.profile || profileRes.data.user || profileRes.data;
-        
+        const raw = profileRes.data;
+        const profile = raw?.data || raw?.student || raw?.profile || raw?.user || raw;
+        const resolvedSchoolName = profile.school_name || profile.school?.name || null;
+        const resolvedSchoolId = profile.school_id !== undefined && profile.school_id !== null ? profile.school_id : profile.city_id;
+
         setStudent((prev) => {
           const updated = {
             id: profile.id || prev?.id,
             uniqueId: profile.unique_id || `STU-${(profile.class || profile.class_name || '10').replace('Class ', '')}${profile.section || 'A'}-${profile.roll || profile.roll_no || '1'}`,
             phone: profile.phone || prev?.phone || tempPhone,
             name: profile.name || prev?.name || 'Student',
-            schoolId: profile.city_id || prev?.schoolId || 1,
-            schoolName: profile.school_name || prev?.schoolName || 'Campus Canteen',
+            schoolId: resolvedSchoolId !== undefined && resolvedSchoolId !== null ? resolvedSchoolId : (prev?.schoolId || 1),
+            schoolName: resolvedSchoolName || prev?.schoolName || 'School Canteen',
             className: profile.class || profile.class_name || prev?.className || 'Class 10',
             section: profile.section || prev?.section || 'A',
             rollNo: profile.roll || profile.roll_no || prev?.rollNo || '1',
@@ -732,6 +823,10 @@ export const CanteenProvider = ({ children }) => {
 
   // Cart actions
   const addToCart = (item) => {
+    if (item.is_available === false || item.isAvailable === false) {
+      showToast('Out of Stock ⚠️', `${item.name || 'This item'} is currently out of stock.`, 'error');
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((x) => x.id === item.id);
       if (existing) {
@@ -746,6 +841,13 @@ export const CanteenProvider = ({ children }) => {
   };
 
   const updateQuantity = (itemId, delta) => {
+    if (delta > 0) {
+      const menuItem = liveMenuItems.find((m) => m.id === itemId || String(m.backendId) === String(itemId));
+      if (menuItem && (menuItem.is_available === false || menuItem.isAvailable === false)) {
+        showToast('Out of Stock ⚠️', `${menuItem.name || 'This item'} is currently out of stock.`, 'error');
+        return;
+      }
+    }
     setCart((prev) =>
       prev
         .map((x) => {
@@ -779,7 +881,7 @@ export const CanteenProvider = ({ children }) => {
     const newAddr = {
       id: 'addr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       studentName: (addr.studentName || student?.name || 'Student').trim(),
-      schoolName: (addr.schoolName || student?.schoolName || 'Campus School').trim(),
+      schoolName: (addr.schoolName || student?.schoolName || 'School Canteen').trim(),
       className: (addr.className || '10').replace('Class ', '').trim(),
       section: (addr.section || 'A').toUpperCase().trim(),
       rollNo: (addr.rollNo || '1').toString().trim()
@@ -895,6 +997,16 @@ export const CanteenProvider = ({ children }) => {
   const placePreOrder = async (overrideAddress = null) => {
     if (cart.length === 0) return false;
 
+    // Check if any cart item is out of stock
+    const outOfStockItem = cart.find((c) => {
+      const menuItem = liveMenuItems.find((m) => m.id === c.id || String(m.backendId) === String(c.backendId || c.id));
+      return menuItem ? (menuItem.is_available === false || menuItem.isAvailable === false) : (c.is_available === false || c.isAvailable === false);
+    });
+    if (outOfStockItem) {
+      showToast('Item Unavailable ⚠️', `"${outOfStockItem.name}" is out of stock. Please remove it from cart.`, 'error');
+      return false;
+    }
+
     if (cartTotal >= 5000) {
       showToast('Cart Limit Exceeded ⚠️', 'Cart value exceeds limit. You can only place orders less than ₹5000.', 'error');
       return false;
@@ -908,13 +1020,13 @@ export const CanteenProvider = ({ children }) => {
 
     const currentAddr = overrideAddress || addresses.find((a) => a.id === selectedAddressId) || addresses[0] || {
       studentName: student?.name || 'Student',
-      schoolName: student?.schoolName || 'Campus School',
+      schoolName: student?.schoolName || 'School Canteen',
       className: (student?.className || '10').replace('Class ', '').trim(),
       section: student?.section || 'A',
       rollNo: student?.rollNo || '1'
     };
 
-    const addressText = `School: ${currentAddr.schoolName || 'Campus'} | Class: ${currentAddr.className || ''} | Sec: ${currentAddr.section || ''} | Roll: ${currentAddr.rollNo || ''} | Name: ${currentAddr.studentName || student?.name || ''}`;
+    const addressText = `School: ${currentAddr.schoolName || student?.schoolName || 'School Canteen'} | Class: ${currentAddr.className || ''} | Sec: ${currentAddr.section || ''} | Roll: ${currentAddr.rollNo || ''} | Name: ${currentAddr.studentName || student?.name || ''}`;
 
     const orderTotal = cartTotal;
     let orderId = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -970,7 +1082,7 @@ export const CanteenProvider = ({ children }) => {
       preOrderDate: preOrderDateLabel,
       breakSlot: breakSlot === 'recess' ? 'Morning Recess (10:30 AM)' : 'Lunch Break (1:15 PM)',
       status: 'Scheduled',
-      pickupNote: `${currentAddr.studentName} (${currentAddr.schoolName || 'Campus'}, Class ${currentAddr.className}-${currentAddr.section}, Roll #${currentAddr.rollNo})`,
+      pickupNote: `${currentAddr.studentName} (${currentAddr.schoolName || student?.schoolName || 'School Canteen'}, Class ${currentAddr.className}-${currentAddr.section}, Roll #${currentAddr.rollNo})`,
       deliveryAddress: currentAddr,
       note: addressText,
       createdAt: 'Just now'
@@ -1135,13 +1247,15 @@ export const CanteenProvider = ({ children }) => {
           setAuthStep('profile');
         } else {
           const profile = res.data.student || res.data.profile || res.data.user || {};
+          const resolvedSchoolId = profile.school_id !== undefined ? profile.school_id : (profile.city_id || 1);
+          const resolvedSchoolName = profile.school_name || profile.school?.name || 'School Canteen';
           const stu = {
             id: profile.id,
             uniqueId: profile.unique_id || `STU-${(profile.class || profile.class_name || '10').replace('Class ', '')}${profile.section || 'A'}-${profile.roll || profile.roll_no || '1'}`,
             phone: profile.phone || tempPhone,
             name: profile.name || 'Student',
-            schoolId: profile.city_id || 1,
-            schoolName: profile.school_name || 'Campus Canteen',
+            schoolId: resolvedSchoolId,
+            schoolName: resolvedSchoolName,
             className: profile.class || profile.class_name || 'Class 10',
             section: profile.section || 'A',
             rollNo: profile.roll || profile.roll_no || '1',
@@ -1177,6 +1291,7 @@ export const CanteenProvider = ({ children }) => {
     try {
       const res = await apiCompleteProfile({
         name: profileData.name,
+        school_id: profileData.schoolId || profileData.school_id || 1,
         city_id: profileData.schoolId || profileData.school_id || 1,
         class_name: profileData.className,
         section: profileData.section,
@@ -1189,7 +1304,7 @@ export const CanteenProvider = ({ children }) => {
         phone: tempPhone,
         name: profileData.name,
         schoolId: profileData.schoolId || profileData.school_id || 1,
-        schoolName: profileData.schoolName || 'Campus Canteen',
+        schoolName: profileData.schoolName || profileData.school_name || 'School Canteen',
         className: profileData.className,
         section: profileData.section,
         rollNo: profileData.rollNo,
@@ -1257,6 +1372,7 @@ export const CanteenProvider = ({ children }) => {
         backendProducts,
         backendCities,
         backendCategories,
+        backendSchools,
         syncBackendData,
         makeLiveRequest,
         getApiBase,

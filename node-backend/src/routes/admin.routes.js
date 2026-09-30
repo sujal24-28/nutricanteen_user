@@ -57,6 +57,15 @@ router.patch(
   ctrl.toggleStudentStatus
 );
 
+// Edit student details (superadmin or staff)
+router.patch(
+  '/students/:id',
+  requireRole('superadmin', 'staff'),
+  [param('id').isInt().withMessage('Invalid student ID')],
+  validate,
+  ctrl.updateStudent
+);
+
 // Delete student (superadmin only)
 router.delete(
   '/students/:id',

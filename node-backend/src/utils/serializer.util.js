@@ -20,6 +20,8 @@ const serializeStudent = (student) => {
     wallet_balance: parseRupees(s.wallet_balance),
     is_active:      Boolean(s.is_active),
     school_id:      s.school_id || null,
+    school_name:    s.school?.name || null,
+    school:         s.school ? { id: s.school.id, name: s.school.name, address: s.school.address } : null,
     created_at:     s.created_at,
   };
 };

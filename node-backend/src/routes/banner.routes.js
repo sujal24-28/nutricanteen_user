@@ -21,7 +21,7 @@ const DEFAULT_BANNERS = [
   {
     id: 'default-2',
     imageUrl: 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?auto=format&fit=crop&q=80&w=1200',
-    title: 'Healthy Campus Bites',
+    title: 'Healthy School Meals',
     subtitle: 'Balanced nutrition for energy all school day!',
   },
   {

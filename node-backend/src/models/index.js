@@ -11,6 +11,7 @@ const WalletTransaction  = require('./WalletTransaction.model');
 const RefreshToken       = require('./RefreshToken.model');
 const School             = require('./School.model');
 const Banner             = require('./Banner.model');
+const Category           = require('./Category.model');
 
 // Student <-> School
 School.hasMany(Student, { foreignKey: 'school_id', as: 'students' });
@@ -52,4 +53,5 @@ module.exports = {
   RefreshToken,
   School,
   Banner,
+  Category,
 };

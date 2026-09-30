@@ -38,7 +38,11 @@ const listItems = async (query = {}) => {
   }
 
   const where = {};
-  if (query.available !== 'false') where.is_available = true;
+  if (query.available === 'true') {
+    where.is_available = true;
+  } else if (query.available === 'false') {
+    where.is_available = false;
+  }
   if (query.category)              where.category = query.category;
   if (query.search) {
     const term = String(query.search).trim().slice(0, 50);
@@ -112,7 +116,9 @@ const createItem = async (data, file) => {
     mrp:          data.mrp ? parseRupees(data.mrp) : null,
     category:     data.category || 'General',
     food_type:    data.food_type || 'veg',
-    is_available: data.is_available !== 'false',
+    is_available: data.is_available !== undefined
+      ? (data.is_available === true || data.is_available === 'true' || data.is_available === 1 || data.is_available === '1')
+      : true,
     daily_limit:  data.daily_limit ? parseInt(data.daily_limit, 10) : null,
     image_url:    imageUrl,
   });
@@ -159,7 +165,7 @@ const updateItem = async (id, data, file) => {
     category:     data.category     ?? item.category,
     food_type:    data.food_type    ?? item.food_type,
     is_available: data.is_available !== undefined
-      ? data.is_available !== 'false'
+      ? (data.is_available === true || data.is_available === 'true' || data.is_available === 1 || data.is_available === '1')
       : item.is_available,
     daily_limit:  data.daily_limit  !== undefined
       ? (data.daily_limit ? parseInt(data.daily_limit, 10) : null)

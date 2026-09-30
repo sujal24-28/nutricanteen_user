@@ -110,8 +110,21 @@ interface ItemDetailResponse {
   }>;
 }
 
+interface CategoryType {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  item_count?: number;
+}
+
 export default function MenuPage() {
   const [menu, setMenu] = useState<MenuItemType[]>([]);
+  const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatDesc, setNewCatDesc] = useState('');
+  const [isSubmittingCat, setIsSubmittingCat] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
@@ -128,7 +141,65 @@ export default function MenuPage() {
     if (res.ok) setMenu(await res.json());
   };
 
-  useEffect(() => { fetchMenu(); }, []);
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setCategories(data.data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch categories:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchMenu();
+    fetchCategories();
+  }, []);
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim() || isSubmittingCat) return;
+    setIsSubmittingCat(true);
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCatName.trim(), description: newCatDesc.trim() })
+      });
+      if (res.ok) {
+        setNewCatName('');
+        setNewCatDesc('');
+        await fetchCategories();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to add category');
+      }
+    } catch (e) {
+      alert('An unexpected error occurred');
+    } finally {
+      setIsSubmittingCat(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: number, name: string) => {
+    if (!confirm(`Are you sure you want to delete category "${name}"? Any items in this category will be moved to "General".`)) return;
+    try {
+      const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchCategories();
+        await fetchMenu();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete category');
+      }
+    } catch (e) {
+      alert('Failed to delete category');
+    }
+  };
 
   const openItemDetails = async (id: number) => {
     setActiveItemId(id);
@@ -278,16 +349,29 @@ export default function MenuPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">Manage dishes, pricing & MRP, dietary types (Veg/Non-Veg/Egg), photos, and inspect individual item analytics</p>
         </div>
-        <button
-          onClick={() => {
-            setFormData({ name: '', description: '', price: '', mrp: '', category: 'general', food_type: 'veg', is_available: true });
-            setImageFile(null);
-            setShowForm(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-gold hover:bg-brand-gold-dark text-brand-brown-dark font-bold rounded-lg transition-colors shadow-sm"
-        >
-          <Plus size={16} /> Add Item
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowCategoryModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-50 border border-gray-300 hover:border-brand-gold text-brand-brown-dark font-semibold rounded-lg transition-colors shadow-xs text-sm cursor-pointer"
+          >
+            <Tag size={16} className="text-brand-gold" />
+            <span>Manage Categories</span>
+            <span className="ml-1 px-1.5 py-0.5 text-xs bg-gray-100 rounded-full font-bold">
+              {categories.length}
+            </span>
+          </button>
+          <button
+            onClick={() => {
+              setFormData({ name: '', description: '', price: '', mrp: '', category: categories[0]?.slug || 'general', food_type: 'veg', is_available: true });
+              setImageFile(null);
+              setShowForm(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-gold hover:bg-brand-gold-dark text-brand-brown-dark font-bold rounded-lg transition-colors shadow-sm text-sm cursor-pointer"
+          >
+            <Plus size={16} /> Add Item
+          </button>
+        </div>
       </div>
 
       {/* Search and Category Filter Bar */}
@@ -317,15 +401,17 @@ export default function MenuPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-gold/60"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-gold/60 capitalize"
           >
             <option value="all">All Categories ({menu.length})</option>
-            <option value="breakfast">Morning Recess (breakfast)</option>
-            <option value="lunch">Hot Lunch Meals (lunch)</option>
-            <option value="snacks">Nutri-Snacks (snacks)</option>
-            <option value="bakery">Bakery & Sweets (bakery)</option>
-            <option value="drinks">Fresh Drinks & Shakes (drinks)</option>
-            <option value="general">General (Other)</option>
+            {categories.map((c) => {
+              const count = menu.filter(m => m.category?.toLowerCase() === c.slug.toLowerCase() || m.category?.toLowerCase() === c.name.toLowerCase()).length;
+              return (
+                <option key={c.id} value={c.slug}>
+                  {c.name} ({count})
+                </option>
+              );
+            })}
           </select>
 
           {/* Items count badge */}
@@ -388,14 +474,22 @@ export default function MenuPage() {
               <p className="text-[11px] text-gray-400 mt-1">If entered, MRP will be strikethrough with discount % badge shown</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select required className="w-full border p-2 rounded-lg bg-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                <option value="breakfast">Morning Recess (breakfast)</option>
-                <option value="lunch">Hot Lunch Meals (lunch)</option>
-                <option value="snacks">Nutri-Snacks (snacks)</option>
-                <option value="bakery">Bakery & Sweets (bakery)</option>
-                <option value="drinks">Fresh Drinks & Shakes (drinks)</option>
-                <option value="general">General (Other)</option>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">Category</label>
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(true)}
+                  className="text-xs text-brand-gold hover:underline font-bold cursor-pointer"
+                >
+                  + Manage Categories
+                </button>
+              </div>
+              <select required className="w-full border p-2 rounded-lg bg-white capitalize" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -930,6 +1024,126 @@ export default function MenuPage() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Management Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-gray-200">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/70">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-brand-gold/20 flex items-center justify-center text-brand-brown-dark">
+                  <Tag size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Manage Categories</h3>
+                  <p className="text-xs text-gray-500">Create new food categories or delete unused ones</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCategoryModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Add New Category Form */}
+              <form onSubmit={handleAddCategory} className="bg-brand-gold/10 p-4 rounded-xl border border-brand-gold/30 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-brand-brown-dark flex items-center gap-1.5">
+                  <Plus size={14} /> Add New Category
+                </h4>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Category name (e.g. Healthy Juices, Chinese, Rolls)"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-gold/60"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Brief description (optional)"
+                    value={newCatDesc}
+                    onChange={(e) => setNewCatDesc(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-gold/60"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingCat || !newCatName.trim()}
+                    className="px-4 py-2 bg-brand-gold hover:bg-brand-gold-dark disabled:opacity-50 text-brand-brown-dark font-bold text-xs rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>{isSubmittingCat ? 'Adding...' : 'Add Category'}</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* Existing Categories List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-wider px-1">
+                  <span>Active Categories ({categories.length})</span>
+                  <span>Items</span>
+                </div>
+                <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white">
+                  {categories.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-gray-400">
+                      No categories found. Add your first category above.
+                    </div>
+                  ) : (
+                    categories.map((cat) => {
+                      const count = menu.filter(m => m.category?.toLowerCase() === cat.slug.toLowerCase() || m.category?.toLowerCase() === cat.name.toLowerCase()).length;
+                      return (
+                        <div key={cat.id} className="p-3 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-gray-900 capitalize">{cat.name}</span>
+                              <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">
+                                {cat.slug}
+                              </span>
+                            </div>
+                            {cat.description && (
+                              <p className="text-xs text-gray-500 truncate mt-0.5">{cat.description}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <span className="text-xs font-bold px-2 py-1 bg-gray-100 text-gray-700 rounded-lg">
+                              {count} {count === 1 ? 'item' : 'items'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title={`Delete category "${cat.name}"`}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCategoryModal(false)}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold rounded-lg transition cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

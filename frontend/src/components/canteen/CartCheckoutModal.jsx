@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useCanteen } from '../../context/useCanteen';
 import { FoodTypeSymbol } from './MenuCard';
+import { apiCompleteProfile, apiGetSchools } from '../../services/api';
 import {
   ArrowLeft,
   X,
@@ -10,14 +11,14 @@ import {
   MapPin,
   Edit3,
   Check,
-  Tag,
   Wallet,
   AlertCircle,
   Calendar,
   Clock,
   Sparkles,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  ChevronDown
 } from 'lucide-react';
 
 export const CartCheckoutModal = () => {
@@ -36,6 +37,7 @@ export const CartCheckoutModal = () => {
     preOrderDateLabel,
     breakSlot,
     student,
+    setStudent,
     placePreOrder,
     setIsRechargeOpen,
     addresses = [],
@@ -44,7 +46,9 @@ export const CartCheckoutModal = () => {
     addAddress,
     updateAddress,
     deleteAddress,
-    showToast
+    showToast,
+    liveMenuItems = [],
+    backendSchools = []
   } = useCanteen();
 
   // Address modal states
@@ -59,7 +63,44 @@ export const CartCheckoutModal = () => {
     rollNo: ''
   });
 
-  const [couponApplied, setCouponApplied] = useState(false);
+  // Direct database schools fallback in case backendSchools hasn't synced yet
+  const [directDbSchools, setDirectDbSchools] = useState([]);
+  useEffect(() => {
+    let isMounted = true;
+    apiGetSchools().then((res) => {
+      if (isMounted && res.ok && Array.isArray(res.data) && res.data.length > 0) {
+        setDirectDbSchools(res.data);
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  // Available schools exclusively from database - strictly no pre-feeded/hardcoded dummy schools
+  const availableSchools = useMemo(() => {
+    const rawList = (backendSchools && backendSchools.length > 0) ? backendSchools : directDbSchools;
+    const list = [];
+    const seen = new Set();
+
+    (rawList || []).forEach((s) => {
+      const name = (s.name || '').trim();
+      if (name && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        list.push({ id: s.id, name });
+      }
+    });
+
+    return list;
+  }, [backendSchools, directDbSchools]);
+
+  // Selected school value matched strictly against database schools
+  const selectedSchoolValue = useMemo(() => {
+    if (availableSchools.length === 0) return addressForm.schoolName || '';
+    const match = availableSchools.find(
+      (s) => s.name?.toLowerCase() === (addressForm.schoolName || '').trim().toLowerCase()
+    );
+    return match ? match.name : (availableSchools[0]?.name || '');
+  }, [availableSchools, addressForm.schoolName]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isCartOpen) return null;
@@ -68,7 +109,7 @@ export const CartCheckoutModal = () => {
   const fallbackAddress = {
     id: 'addr_temp_default',
     studentName: student?.name || 'Student',
-    schoolName: student?.schoolName || 'Campus School',
+    schoolName: student?.schoolName || 'School Canteen',
     className: (student?.className || '10').replace('Class ', '').trim(),
     section: (student?.section || 'A').toUpperCase().trim(),
     rollNo: (student?.rollNo || '1').toString().trim()
@@ -79,18 +120,25 @@ export const CartCheckoutModal = () => {
 
   // Price calculations
   const displayMrpTotal = cartMrpTotal > 0 ? cartMrpTotal : cartTotal;
-  const couponDiscount = couponApplied ? Math.min(20, Math.floor(cartTotal * 0.1)) : 0;
-  const displayDiscount = cartDiscountTotal + couponDiscount;
-  const finalPayAmount = Math.max(0, cartTotal - couponDiscount);
+  const displayDiscount = cartDiscountTotal;
+  const finalPayAmount = Math.max(0, cartTotal);
   const isOverCartLimit = cartTotal >= 5000 || finalPayAmount >= 5000;
+  const hasOutOfStockItems = cart.some((item) => {
+    const live = liveMenuItems.find((m) => m.id === item.id || String(m.backendId) === String(item.backendId || item.id));
+    return live ? (live.is_available === false || live.isAvailable === false) : (item.is_available === false || item.isAvailable === false);
+  });
 
   // Address actions
   const handleOpenAddAddress = () => {
     setAddressMode('add');
     setCurrentEditId(null);
+    const dbSchool = availableSchools.find(
+      (s) => s.name?.toLowerCase() === (student?.schoolName || '').trim().toLowerCase()
+    );
+    const initialSchool = dbSchool ? dbSchool.name : (availableSchools[0]?.name || '');
     setAddressForm({
       studentName: student?.name || '',
-      schoolName: student?.schoolName || 'Campus School',
+      schoolName: initialSchool,
       className: (student?.className || '10').replace('Class ', '').trim(),
       section: (student?.section || 'A').toUpperCase().trim(),
       rollNo: (student?.rollNo || '1').toString().trim()
@@ -102,9 +150,13 @@ export const CartCheckoutModal = () => {
     if (e) e.stopPropagation();
     setAddressMode('edit');
     setCurrentEditId(addr.id);
+    const dbSchool = availableSchools.find(
+      (s) => s.name?.toLowerCase() === (addr.schoolName || student?.schoolName || '').trim().toLowerCase()
+    );
+    const initialSchool = dbSchool ? dbSchool.name : (addr.schoolName || availableSchools[0]?.name || '');
     setAddressForm({
       studentName: addr.studentName || '',
-      schoolName: addr.schoolName || '',
+      schoolName: initialSchool,
       className: addr.className || '',
       section: addr.section || '',
       rollNo: addr.rollNo || ''
@@ -118,11 +170,31 @@ export const CartCheckoutModal = () => {
       alert('Please enter student name');
       return;
     }
+    const schoolToSave = (selectedSchoolValue || addressForm.schoolName || availableSchools[0]?.name || '').trim();
+    const finalForm = {
+      ...addressForm,
+      schoolName: schoolToSave
+    };
+
     if (addressMode === 'edit' && currentEditId) {
-      updateAddress(currentEditId, addressForm);
+      updateAddress(currentEditId, finalForm);
     } else {
-      addAddress(addressForm);
+      addAddress(finalForm);
     }
+
+    // Keep student's school synchronized across the app
+    if (student && schoolToSave && schoolToSave !== student.schoolName) {
+      setStudent((prev) => (prev ? { ...prev, schoolName: schoolToSave } : prev));
+      const matched = availableSchools.find((s) => s.name?.toLowerCase() === schoolToSave.toLowerCase());
+      apiCompleteProfile({
+        name: finalForm.studentName,
+        school_id: matched?.id && !isNaN(Number(matched.id)) ? Number(matched.id) : (student.schoolId || 1),
+        class_name: finalForm.className,
+        section: finalForm.section,
+        roll_no: finalForm.rollNo
+      }).catch((err) => console.warn('Could not sync school update to backend profile:', err));
+    }
+
     setIsAddressModalOpen(false);
   };
 
@@ -216,32 +288,48 @@ export const CartCheckoutModal = () => {
                   const hasDiscount = unitMrp > unitPrice;
                   const rawName = (item.name || '').trim();
                   const displayName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : '';
+                  const live = liveMenuItems.find((m) => m.id === item.id || String(m.backendId) === String(item.backendId || item.id));
+                  const isItemOutOfStock = live ? (live.is_available === false || live.isAvailable === false) : (item.is_available === false || item.isAvailable === false);
 
                   return (
                     <div
                       key={item.id}
-                      className="bg-white dark:bg-leaf-950/70 rounded-2xl p-3 flex items-center gap-3.5 border border-leaf-100 dark:border-leaf-800/60 shadow-xs"
+                      className={`bg-white dark:bg-leaf-950/70 rounded-2xl p-3 flex items-center gap-3.5 border shadow-xs ${
+                        isItemOutOfStock ? 'border-red-200 dark:border-red-900/60 bg-red-50/20' : 'border-leaf-100 dark:border-leaf-800/60'
+                      }`}
                     >
                       {/* Item Image */}
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-leaf-50 dark:bg-leaf-900/40 shrink-0 border border-leaf-100 dark:border-leaf-800/60 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-leaf-50 dark:bg-leaf-900/40 shrink-0 border border-leaf-100 dark:border-leaf-800/60 flex items-center justify-center relative">
                         {item.image ? (
                           <img
                             src={item.image}
                             alt={displayName}
-                            className="w-full h-full object-cover"
+                            className={`w-full h-full object-cover ${isItemOutOfStock ? 'grayscale opacity-60' : ''}`}
                           />
                         ) : (
                           <div className="text-xl">🍱</div>
+                        )}
+                        {isItemOutOfStock && (
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <span className="bg-red-600 text-white font-black text-[8px] uppercase px-1 py-0.5 rounded">
+                              Out
+                            </span>
+                          </div>
                         )}
                       </div>
 
                       {/* Item Info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
+                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                           <FoodTypeSymbol type={item.food_type || (item.isVeg === false ? 'non-veg' : 'veg')} size="sm" />
                           <h4 className="font-bold text-gray-900 dark:text-white text-sm truncate">
                             {displayName}
                           </h4>
+                          {isItemOutOfStock && (
+                            <span className="text-[9px] font-extrabold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-900/80 px-1.5 py-0.2 rounded-md uppercase tracking-wider shrink-0">
+                              Out of Stock
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -287,35 +375,6 @@ export const CartCheckoutModal = () => {
                     </div>
                   );
                 })}
-              </div>
-
-              {/* Coupon / Check Offers Row */}
-              <div className="bg-white dark:bg-leaf-950/70 rounded-2xl p-3.5 flex items-center justify-between border border-leaf-100 dark:border-leaf-800/60 shadow-xs">
-                <div className="flex items-center gap-2.5 text-gray-800 dark:text-gray-200 font-semibold text-sm">
-                  <div className="w-7 h-7 rounded-xl bg-gold-100 dark:bg-gold-950/70 text-gold-700 dark:text-gold-300 flex items-center justify-center">
-                    <Tag className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Check Offers</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (couponApplied) {
-                      setCouponApplied(false);
-                      showToast?.('Coupon Removed', 'Standard price applied.');
-                    } else {
-                      setCouponApplied(true);
-                      showToast?.('Coupon Applied! 🎉', 'Campus meal discount activated.');
-                    }
-                  }}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer transition-all ${
-                    couponApplied
-                      ? 'bg-leaf-100 dark:bg-leaf-900/60 text-leaf-800 dark:text-leaf-200 border border-leaf-300 dark:border-leaf-700'
-                      : 'bg-gold-50 hover:bg-gold-100 dark:bg-gold-950/60 dark:hover:bg-gold-900/70 text-gold-800 dark:text-gold-300 border border-gold-200 dark:border-gold-800/70'
-                  }`}
-                >
-                  {couponApplied ? 'Applied ✓' : 'Apply Coupon'}
-                </button>
               </div>
 
               {/* Select Address Section */}
@@ -367,7 +426,7 @@ export const CartCheckoutModal = () => {
 
                         <div className="text-[11px] text-gray-600 dark:text-gray-300 space-y-0.5">
                           <p className="truncate font-semibold text-gray-800 dark:text-gray-200">
-                            {addr.schoolName || 'Campus School'}
+                            {addr.schoolName || student?.schoolName || 'School Canteen'}
                           </p>
                           <p className="text-gray-500 dark:text-leaf-300/70 font-medium">
                             Class {addr.className} - {addr.section} · Roll {addr.rollNo}
@@ -410,7 +469,7 @@ export const CartCheckoutModal = () => {
                   <div className="flex items-center justify-between">
                     <span>Delivery Charge</span>
                     <span className="font-bold text-leaf-700 dark:text-leaf-400">
-                      FREE Campus Pickup
+                      FREE Canteen Pickup
                     </span>
                   </div>
 
@@ -470,13 +529,19 @@ export const CartCheckoutModal = () => {
                 <span>Cart value exceeds limit. You can only place orders less than ₹5000.</span>
               </div>
             )}
+            {hasOutOfStockItems && (
+              <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/80 p-2.5 rounded-2xl flex items-center gap-2.5 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                <span>Some items in your cart are currently out of stock. Please remove them to proceed.</span>
+              </div>
+            )}
             <button
               type="button"
-              disabled={isSubmitting || isOverCartLimit}
+              disabled={isSubmitting || isOverCartLimit || hasOutOfStockItems}
               onClick={handleConfirmOrder}
               className={`w-full py-3.5 rounded-2xl shadow-lg transition-all text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
-                isOverCartLimit
-                  ? 'bg-rose-600 text-white opacity-75'
+                isOverCartLimit || hasOutOfStockItems
+                  ? 'bg-rose-600/80 text-white opacity-85'
                   : 'bg-leaf-700 hover:bg-leaf-800 active:scale-[0.99] text-white shadow-leaf-glow'
               }`}
             >
@@ -484,6 +549,8 @@ export const CartCheckoutModal = () => {
                 'Placing Order…'
               ) : isOverCartLimit ? (
                 'Limit Exceeded (Max ₹5,000)'
+              ) : hasOutOfStockItems ? (
+                'Remove Out-of-Stock Items'
               ) : (
                 <>
                   <Wallet className="w-4 h-4 text-gold-300" />
@@ -531,16 +598,33 @@ export const CartCheckoutModal = () => {
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  School / Campus Name *
+                  School Name *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={addressForm.schoolName}
-                  onChange={(e) => setAddressForm({ ...addressForm, schoolName: e.target.value })}
-                  placeholder="e.g. Delhi Public School"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-leaf-200 dark:border-leaf-700 bg-white dark:bg-leaf-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-leaf-500"
-                />
+                <div className="relative">
+                  <select
+                    required
+                    value={selectedSchoolValue}
+                    onChange={(e) => setAddressForm({ ...addressForm, schoolName: e.target.value })}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-leaf-200 dark:border-leaf-700 bg-white dark:bg-leaf-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-leaf-500 appearance-none pr-8 cursor-pointer font-medium"
+                  >
+                    {availableSchools.length === 0 ? (
+                      <option value="" disabled className="bg-white dark:bg-leaf-900 text-gray-400">
+                        Loading schools from database...
+                      </option>
+                    ) : (
+                      availableSchools.map((sch) => (
+                        <option
+                          key={sch.id}
+                          value={sch.name}
+                          className="bg-white dark:bg-leaf-900 text-gray-900 dark:text-white"
+                        >
+                          {sch.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-leaf-600 dark:text-leaf-400 absolute right-2.5 top-2.5 pointer-events-none" />
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">

@@ -24,7 +24,7 @@ const sequelize = isTest
         host:    process.env.DB_HOST || 'localhost',
         port:    parseInt(process.env.DB_PORT, 10) || 3306,
         dialect: 'mysql',
-        logging: (msg) => logger.debug(msg),
+        logging: process.env.DB_LOGGING === 'true' ? (msg) => logger.debug(msg) : false,
         pool: {
           max:     10,
           min:     0,

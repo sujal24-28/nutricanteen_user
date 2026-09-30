@@ -43,11 +43,21 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-/* ─── HTTP Request Logging ─── */
+/* ─── HTTP Request Logging (Filtered: skips routine GET pollings & static images) ─── */
 app.use(
-  morgan('combined', {
+  morgan(':method :url :status :response-time ms', {
     stream: { write: (msg) => logger.http(msg.trim()) },
-    skip: (req) => req.url === '/health' || req.url === '/api/v1/health',
+    skip: (req, res) => {
+      // Skip health checks and static image uploads
+      if (req.url === '/health' || req.url === '/api/v1/health' || req.url.startsWith('/uploads')) {
+        return true;
+      }
+      // Skip routine successful GET requests (e.g. menu, orders, wallet, banner polling)
+      if (req.method === 'GET' && res.statusCode < 400) {
+        return true;
+      }
+      return false;
+    },
   })
 );
 
