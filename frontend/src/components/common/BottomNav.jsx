@@ -5,7 +5,10 @@ import { UtensilsCrossed, CalendarCheck, Wallet, Settings, ArrowRight } from 'lu
 export const BottomNav = () => {
   const { activeTab, setActiveTab, orders, cart, cartTotal, setIsCartOpen } = useCanteen();
 
-  const pendingOrdersCount = orders.filter((o) => o.status === 'Scheduled').length;
+  const activeOrdersCount = orders.filter((o) => {
+    const st = (o.status || '').toLowerCase().trim();
+    return st !== 'delivered' && st !== 'cancelled' && st !== 'completed';
+  }).length;
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -21,12 +24,12 @@ export const BottomNav = () => {
               <div className="w-6 h-6 rounded-full bg-gold-900 text-gold-100 flex items-center justify-center text-xs font-black">
                 {cartItemCount}
               </div>
-              <span className="text-xs font-bold">View Pre-Order Basket</span>
+              <span className="text-xs font-bold">Cart</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <span className="font-extrabold text-sm">₹{cartTotal}</span>
               <span className="text-[10px] bg-gold-900/10 dark:bg-gold-100/10 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">
-                Wallet Pay
+                Go to cart
               </span>
               <ArrowRight className="w-3.5 h-3.5 text-gold-900 dark:text-gold-100" />
             </div>
@@ -71,9 +74,9 @@ export const BottomNav = () => {
               <CalendarCheck className="w-4 h-4" />
             </div>
             <span className="text-[10px] tracking-tight">Pre-Orders</span>
-            {pendingOrdersCount > 0 && (
+            {activeOrdersCount > 0 && (
               <span className="absolute top-0.5 right-2 bg-gold-400 text-gold-950 text-[9px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-xs">
-                {pendingOrdersCount}
+                {activeOrdersCount}
               </span>
             )}
           </button>

@@ -1,94 +1,257 @@
 import React from 'react';
 import { useCanteen } from '../../context/useCanteen';
-import { X, GraduationCap, School, Wallet, Info } from 'lucide-react';
+import {
+  X,
+  GraduationCap,
+  Wallet,
+  Info,
+  ShieldCheck,
+  Building2,
+  Clock,
+  Phone,
+  Edit3,
+  ArrowLeft
+} from 'lucide-react';
 
 export const StudentIdCardModal = () => {
-  const { isStudentIdModalOpen, setIsStudentIdModalOpen, student, walletBalance } = useCanteen();
+  const {
+    isStudentIdModalOpen,
+    setIsStudentIdModalOpen,
+    student,
+    walletBalance,
+    setIsRechargeOpen,
+    setIsEditProfileOpen
+  } = useCanteen();
 
   if (!isStudentIdModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white dark:bg-leaf-950 w-full max-w-lg rounded-t-[28px] sm:rounded-3xl border border-leaf-200 dark:border-leaf-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh]">
-        {/* Mobile Drag Indicator */}
-        <div className="w-12 h-1 bg-gray-300 dark:bg-leaf-800 rounded-full mx-auto my-2 sm:hidden shrink-0" />
-
-        {/* Header */}
-        <div className="p-3.5 bg-leaf-700 text-white flex items-center justify-between border-b border-leaf-600 shrink-0">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="w-4 h-4 text-gold-300" />
-            <h3 className="font-bold text-sm text-white">Student Canteen Identity Card</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+      <div className="bg-[#f6f9f7] dark:bg-[#0c140e] w-full max-w-lg h-full sm:h-auto sm:max-h-[92vh] sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col sm:border border-leaf-200 dark:border-leaf-800">
+        
+        {/* Top Header Bar with Safe-Area Clearance */}
+        <div className="bg-leaf-800 dark:bg-leaf-950 text-white px-4 pt-[max(0.85rem,calc(env(safe-area-inset-top,0px)+0.6rem))] pb-3.5 flex items-center justify-between border-b border-leaf-700/70 dark:border-leaf-900 shrink-0 shadow-md">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsStudentIdModalOpen(false)}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition-all cursor-pointer text-white"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-4.5 h-4.5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-extrabold tracking-tight text-white leading-tight">
+                  Student Profile & ID Pass
+                </h2>
+                <span className="text-[9px] bg-leaf-600/80 text-leaf-100 font-bold px-2 py-0.5 rounded-full border border-leaf-500/50 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-leaf-300" />
+                  Verified
+                </span>
+              </div>
+              <p className="text-[11px] text-leaf-200 font-medium">
+                Official digital identifier for school canteen access
+              </p>
+            </div>
           </div>
           <button
+            type="button"
             onClick={() => setIsStudentIdModalOpen(false)}
-            className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition-all text-leaf-200 hover:text-white cursor-pointer"
+            aria-label="Close"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-3.5 overflow-y-auto">
-          {/* Physical Style School ID Card */}
-          <div className="rounded-3xl bg-gradient-to-br from-leaf-700 via-leaf-800 to-leaf-900 text-white p-4.5 border border-leaf-600 shadow-md relative overflow-hidden">
-            {/* Background Pattern */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gold-300/10 rounded-full blur-2xl pointer-events-none"></div>
-
-            {/* School Header Banner */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-leaf-600/60">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-gold-200 text-gold-950 flex items-center justify-center font-bold text-xs">
-                  <School className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-gold-200 leading-tight">
-                    {student?.schoolName?.split('(')[0] || 'Delhi Public School'}
-                  </h4>
-                  <p className="text-[10px] text-leaf-200 font-medium">Digital Canteen Pass • 2026-27</p>
-                </div>
-              </div>
-              <span className="bg-leaf-800 text-leaf-200 text-[9px] font-bold px-2 py-0.5 rounded-full border border-leaf-600">
-                ACTIVE
-              </span>
+        {/* Scrollable ID Pass & Profile Content */}
+        <div className="p-4 space-y-3.5 overflow-y-auto flex-1 pb-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))]">
+          {/* Main Physical-Style Student ID Card */}
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-leaf-700 via-leaf-800 to-leaf-900 text-white p-5 shadow-md border border-leaf-600/50">
+            {/* Background Decorative Rings */}
+            <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-gold-300/10 blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-leaf-400/10 blur-2xl pointer-events-none" />
+            <div className="absolute top-2 right-4 text-leaf-600/20 text-8xl font-black select-none pointer-events-none">
+              {student?.rollNo || '0'}
             </div>
 
-            {/* Student Details Grid */}
-            <div className="py-3.5 flex gap-3.5 items-center">
-              <div className="w-16 h-16 rounded-2xl border border-gold-300 bg-leaf-950 overflow-hidden shadow-xs shrink-0">
+            {/* School Header */}
+            <div className="flex items-center justify-between border-b border-leaf-600/50 pb-3 relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-gold-400/20 border border-gold-300/30 flex items-center justify-center text-gold-200">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="text-[9px] tracking-wider uppercase font-bold text-gold-200 block">
+                    Official School Pass
+                  </span>
+                  <span className="text-xs font-bold text-gray-100 line-clamp-1">
+                    {student?.schoolName || 'School Canteen'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-[9px] text-leaf-200 bg-leaf-800/80 px-2 py-0.5 rounded-full border border-leaf-600/40">
+                <ShieldCheck className="w-3 h-3 text-leaf-300" />
+                <span>Active</span>
+              </div>
+            </div>
+
+            {/* Student Profile Row */}
+            <div className="flex items-center gap-3.5 my-3.5 relative z-10">
+              <div className="relative shrink-0">
                 <img
-                  src={student?.avatar || 'https://ui-avatars.com/api/?name=User&background=f3f4f6&color=9ca3af&size=200'}
-                  alt={student?.name}
-                  className="w-full h-full object-cover"
+                  src={student?.avatar || 'https://ui-avatars.com/api/?name=User&background=15803d&color=ffffff&size=200'}
+                  alt={student?.name || 'Student'}
+                  className="w-14 h-14 rounded-2xl object-cover border-2 border-gold-300/80 shadow-xs bg-leaf-950"
                 />
+                <div className="absolute -bottom-1 -right-1 bg-gold-300 text-gold-950 font-black text-[9px] px-1.5 py-0.2 rounded-full shadow-xs">
+                  #{student?.rollNo || '0'}
+                </div>
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-base text-white truncate">{student?.name}</h3>
+                <h2 className="text-base font-bold text-white tracking-tight truncate">
+                  {student?.name || 'Student User'}
+                </h2>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-leaf-100 font-semibold">{student?.className}</span>
-                  <span className="text-leaf-400">•</span>
-                  <span className="text-xs text-leaf-100 font-semibold">Sec {student?.section}</span>
-                  <span className="text-leaf-400">•</span>
-                  <span className="text-xs text-gold-200 font-bold">Roll #{student?.rollNo}</span>
+                  <span className="text-xs font-medium text-leaf-100">
+                    {student?.className} - Sec {student?.section}
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-gold-300" />
+                  <span className="text-xs font-bold text-gold-200">
+                    Roll #{student?.rollNo}
+                  </span>
                 </div>
-                <div className="mt-1 font-mono text-[10px] bg-leaf-950/60 border border-leaf-600/60 px-2 py-0.5 rounded-md inline-block text-gold-200">
-                  ID: {student?.uniqueId}
+                <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono bg-leaf-950/60 border border-leaf-600/40 px-2 py-0.5 rounded-lg text-gold-200">
+                  ID: {student?.uniqueId || 'STU-XXXX'}
                 </div>
               </div>
             </div>
 
-            {/* Wallet Balance on ID */}
-            <div className="pt-2.5 border-t border-leaf-600/60 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-gold-200">
-                <Wallet className="w-3.5 h-3.5" />
-                <span className="font-medium">Canteen Balance:</span>
-                <span className="font-bold text-white">₹{walletBalance}</span>
+            {/* 3-Pillar Identification Grid */}
+            <div className="grid grid-cols-3 gap-2 bg-leaf-900/70 backdrop-blur-xs p-2.5 rounded-2xl border border-leaf-600/40 text-center relative z-10">
+              <div>
+                <span className="text-[9px] text-leaf-200 uppercase font-semibold block">Class</span>
+                <span className="text-xs font-bold text-white">{student?.className || '10'}</span>
               </div>
-              <span className="text-[10px] text-leaf-200">Phone-Free Verified</span>
+              <div className="border-x border-leaf-700/60">
+                <span className="text-[9px] text-leaf-200 uppercase font-semibold block">Section</span>
+                <span className="text-xs font-bold text-gold-200 font-mono">{student?.section || 'A'}</span>
+              </div>
+              <div>
+                <span className="text-[9px] text-leaf-200 uppercase font-semibold block">Roll No</span>
+                <span className="text-xs font-bold text-white font-mono">{student?.rollNo || '0'}</span>
+              </div>
+            </div>
+
+            {/* Live Wallet Chip on Pass */}
+            <div className="mt-2.5 flex items-center justify-between bg-gold-400/10 border border-gold-300/30 p-2.5 rounded-2xl relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-gold-300 flex items-center justify-center text-gold-950">
+                  <Wallet className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="text-[9px] text-gold-200 block font-medium">Canteen Wallet</span>
+                  <span className="text-xs font-bold text-white">₹{walletBalance}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsStudentIdModalOpen(false);
+                  setIsRechargeOpen(true);
+                }}
+                className="text-[11px] bg-gold-300 hover:bg-gold-200 text-gold-950 font-bold px-3 py-1 rounded-xl transition shadow-xs active:scale-95 cursor-pointer"
+              >
+                + Top Up
+              </button>
             </div>
           </div>
 
-          {/* Info Notice */}
+          {/* School Canteen Timings & Counter Info */}
+          <div className="bg-white dark:bg-leaf-950/70 p-3.5 rounded-2xl border border-leaf-100 dark:border-leaf-800 space-y-2.5 shadow-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
+              School Canteen Details
+            </span>
+
+            <div className="flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-leaf-50 dark:bg-leaf-900/60 text-leaf-700 dark:text-leaf-300 flex items-center justify-center shrink-0">
+                <Building2 className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-gray-800 dark:text-gray-200 block">
+                  {student?.schoolName || 'School Canteen'}
+                </span>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Ground Floor, Main Dining Hall & Counters 1–4
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100 dark:border-leaf-800/60">
+              <div className="p-2 bg-leaf-50/60 dark:bg-leaf-900/40 rounded-xl">
+                <div className="flex items-center gap-1 text-leaf-700 dark:text-leaf-400 text-xs font-bold mb-0.5">
+                  <Clock className="w-3 h-3" />
+                  <span>Morning Recess</span>
+                </div>
+                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 block">
+                  10:30 AM – 10:50 AM
+                </span>
+                <span className="text-[10px] text-gray-400">Quick snacks & drinks</span>
+              </div>
+
+              <div className="p-2 bg-gold-50/60 dark:bg-gold-950/40 rounded-xl">
+                <div className="flex items-center gap-1 text-gold-700 dark:text-gold-400 text-xs font-bold mb-0.5">
+                  <Clock className="w-3 h-3" />
+                  <span>Lunch Break</span>
+                </div>
+                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 block">
+                  01:15 PM – 01:50 PM
+                </span>
+                <span className="text-[10px] text-gray-400">Hot meals & combos</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Student & Parent Contact Card */}
+          <div className="bg-white dark:bg-leaf-950/70 p-3.5 rounded-2xl border border-leaf-100 dark:border-leaf-800 space-y-2.5 shadow-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
+              Contact & Verification Details
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex items-center gap-2.5 p-2 bg-gray-50 dark:bg-leaf-900/30 rounded-xl">
+                <div className="w-7 h-7 rounded-xl bg-leaf-100 dark:bg-leaf-950/60 text-leaf-700 dark:text-leaf-300 flex items-center justify-center shrink-0">
+                  <Phone className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="text-[9px] text-gray-400 uppercase font-bold block">
+                    Student Mobile
+                  </span>
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                    +91 {student?.phone || 'XXXXXXXXXX'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 p-2 bg-gold-50/50 dark:bg-gold-950/30 rounded-xl">
+                <div className="w-7 h-7 rounded-xl bg-gold-100 dark:bg-gold-900/60 text-gold-700 dark:text-gold-300 flex items-center justify-center shrink-0">
+                  <Phone className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="text-[9px] text-gray-400 uppercase font-bold block">
+                    Parent Contact
+                  </span>
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                    {student?.parentContact || `+91 ${student?.phone || 'XXXXXXXXXX'}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Phone-Free Guidance Notice */}
           <div className="bg-leaf-50 dark:bg-leaf-900/40 p-3 rounded-2xl border border-leaf-200 dark:border-leaf-800 text-xs text-leaf-800 dark:text-leaf-200 flex items-start gap-2">
             <Info className="w-4 h-4 text-leaf-600 shrink-0 mt-0.5" />
             <p className="text-[11px] leading-relaxed">
@@ -97,15 +260,29 @@ export const StudentIdCardModal = () => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-3 bg-gray-50 dark:bg-leaf-900/60 border-t border-leaf-100 dark:border-leaf-800 flex justify-end">
+        {/* Modal Footer with Edit Profile and Close */}
+        <div className="p-3 bg-white dark:bg-leaf-950/90 border-t border-leaf-100 dark:border-leaf-800 flex items-center gap-2.5 shrink-0">
           <button
+            type="button"
+            onClick={() => {
+              setIsStudentIdModalOpen(false);
+              setIsEditProfileOpen(true);
+            }}
+            className="flex-1 bg-leaf-50 hover:bg-leaf-100 dark:bg-leaf-900/40 dark:hover:bg-leaf-900/60 text-leaf-800 dark:text-leaf-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 border border-leaf-200 dark:border-leaf-700 transition cursor-pointer active:scale-98"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>Edit Profile</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setIsStudentIdModalOpen(false)}
-            className="w-full bg-leaf-700 hover:bg-leaf-600 text-white font-bold py-2 rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+            className="flex-1 bg-leaf-700 hover:bg-leaf-600 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer active:scale-98 shadow-xs"
           >
             Done
           </button>
         </div>
+
       </div>
     </div>
   );

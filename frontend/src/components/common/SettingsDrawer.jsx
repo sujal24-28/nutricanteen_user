@@ -21,10 +21,7 @@ import {
 } from 'lucide-react';
 
 export const SettingsDrawer = ({ isOpen, onClose }) => {
-  const { student, walletBalance, logout, setActiveTab, setIsEditProfileOpen } = useCanteen();
-  const [darkMode, setDarkMode] = useState(
-    document.documentElement.classList.contains('dark')
-  );
+  const { student, walletBalance, logout, setActiveTab, setIsEditProfileOpen, darkMode, toggleDarkMode } = useCanteen();
   const [notifications, setNotifications] = useState(true);
 
   // Lock body scroll while drawer is open, restore when closed
@@ -38,11 +35,6 @@ export const SettingsDrawer = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const toggleDark = () => {
-    document.documentElement.classList.toggle('dark');
-    setDarkMode((p) => !p);
-  };
 
   const handleLogout = () => {
     onClose();
@@ -131,7 +123,7 @@ export const SettingsDrawer = ({ isOpen, onClose }) => {
               label="Dark Mode"
               sublabel="Switch between light and dark theme"
               checked={darkMode}
-              onChange={toggleDark}
+              onChange={toggleDarkMode}
             />
           </Section>
 

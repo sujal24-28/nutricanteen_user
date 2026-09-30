@@ -15,8 +15,8 @@ import {
   Wallet,
   Mail,
   ExternalLink,
-  QrCode,
-  Edit3
+  Edit3,
+  ShoppingBag
 } from 'lucide-react';
 
 export const SettingsView = () => {
@@ -27,17 +27,19 @@ export const SettingsView = () => {
     setActiveTab,
     setIsEditProfileOpen,
     setIsRechargeOpen,
+    orders = [],
+    setIsOrderHistoryOpen,
+    setIsStudentIdModalOpen,
+    darkMode,
+    toggleDarkMode
   } = useCanteen();
 
-  const [darkMode, setDarkMode] = useState(
-    () => document.documentElement.classList.contains('dark')
-  );
-  const [notifications, setNotifications] = useState(true);
+  const pastOrders = orders.filter((o) => {
+    const st = (o.status || '').toLowerCase().trim();
+    return st === 'delivered' || st === 'cancelled' || st === 'completed';
+  });
 
-  const toggleDark = () => {
-    document.documentElement.classList.toggle('dark');
-    setDarkMode((p) => !p);
-  };
+  const [notifications, setNotifications] = useState(true);
 
   return (
     <div className="pb-32 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+0.5rem))] px-4 space-y-4">
@@ -57,7 +59,10 @@ export const SettingsView = () => {
       </div>
 
       {/* ── 1. Profile Overview Card ── */}
-      <div className="bg-white dark:bg-leaf-950/60 rounded-3xl p-4 border border-leaf-100 dark:border-leaf-800/80 shadow-xs space-y-3">
+      <div
+        onClick={() => setIsStudentIdModalOpen(true)}
+        className="bg-white dark:bg-leaf-950/60 rounded-3xl p-4 border border-leaf-100 dark:border-leaf-800/80 shadow-xs cursor-pointer hover:border-leaf-300 dark:hover:border-leaf-700 transition"
+      >
         <div className="flex items-center gap-3.5">
           <div className="relative shrink-0">
             <img
@@ -66,7 +71,11 @@ export const SettingsView = () => {
               className="w-14 h-14 rounded-2xl object-cover border-2 border-leaf-300 dark:border-leaf-600 shadow-xs"
             />
             <button
-              onClick={() => setIsEditProfileOpen(true)}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsEditProfileOpen(true);
+              }}
               className="absolute -bottom-1 -right-1 bg-leaf-600 dark:bg-leaf-500 text-white p-1 rounded-full shadow-xs hover:scale-110 active:scale-95 transition-all cursor-pointer"
               title="Change Photo"
             >
@@ -90,25 +99,7 @@ export const SettingsView = () => {
               {student?.schoolName || 'School Canteen'}
             </p>
           </div>
-        </div>
-
-        {/* Action Buttons: Edit Profile & View ID Card */}
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-leaf-100 dark:border-leaf-800/60">
-          <button
-            onClick={() => setIsEditProfileOpen(true)}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-leaf-50 dark:bg-leaf-900/40 text-leaf-800 dark:text-leaf-200 text-xs font-bold border border-leaf-200 dark:border-leaf-700/80 hover:bg-leaf-100 dark:hover:bg-leaf-900/60 transition active:scale-98 cursor-pointer"
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>Edit Profile</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('studentId')}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-leaf-50 dark:bg-leaf-900/40 text-leaf-800 dark:text-leaf-200 text-xs font-bold border border-leaf-200 dark:border-leaf-700/80 hover:bg-leaf-100 dark:hover:bg-leaf-900/60 transition active:scale-98 cursor-pointer"
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span>Digital ID Pass</span>
-          </button>
+          <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
         </div>
       </div>
 
@@ -145,7 +136,27 @@ export const SettingsView = () => {
         </div>
       </div>
 
-      {/* ── 3. App Settings ── */}
+      {/* ── 3. Account & Records ── */}
+      <Section title="Account & Records">
+        <SettingsRow
+          icon={<User className="w-4 h-4" />}
+          iconBg="bg-leaf-100 dark:bg-leaf-950/60 text-leaf-700 dark:text-leaf-300"
+          label="Profile"
+          sublabel="School ID pass, class, roll & student identity"
+          value={student?.className ? `${student.className}-${student.section}` : 'Verified'}
+          onClick={() => setIsStudentIdModalOpen(true)}
+        />
+        <SettingsRow
+          icon={<ShoppingBag className="w-4 h-4" />}
+          iconBg="bg-leaf-100 dark:bg-leaf-950/60 text-leaf-700 dark:text-leaf-300"
+          label="Order History"
+          sublabel="Past completed meals, collections & refunds"
+          value={`${pastOrders.length} ${pastOrders.length === 1 ? 'Order' : 'Orders'}`}
+          onClick={() => setIsOrderHistoryOpen(true)}
+        />
+      </Section>
+
+      {/* ── 4. App Settings ── */}
       <Section title="App Settings">
         <ToggleRow
           icon={darkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
@@ -153,7 +164,7 @@ export const SettingsView = () => {
           label="Dark Theme"
           sublabel="Toggle between dark and light appearance"
           checked={darkMode}
-          onChange={toggleDark}
+          onChange={toggleDarkMode}
         />
         <ToggleRow
           icon={<Bell className="w-4 h-4" />}

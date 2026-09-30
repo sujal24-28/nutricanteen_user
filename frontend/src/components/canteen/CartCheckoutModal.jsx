@@ -203,7 +203,7 @@ export const CartCheckoutModal = () => {
               <div className="w-16 h-16 rounded-2xl bg-leaf-100 dark:bg-leaf-900/40 text-leaf-700 dark:text-gold-300 mx-auto flex items-center justify-center mb-3">
                 <Wallet className="w-8 h-8" />
               </div>
-              <p className="text-sm font-bold text-gray-700 dark:text-white">Your pre-order basket is empty.</p>
+              <p className="text-sm font-bold text-gray-700 dark:text-white">Your cart is empty.</p>
               <p className="text-xs mt-1 text-gray-500 dark:text-leaf-300/60">Add fresh meals from the menu to review your order.</p>
             </div>
           ) : (
@@ -481,13 +481,13 @@ export const CartCheckoutModal = () => {
               }`}
             >
               {isSubmitting ? (
-                'Placing Pre-Order…'
+                'Placing Order…'
               ) : isOverCartLimit ? (
                 'Limit Exceeded (Max ₹5,000)'
               ) : (
                 <>
                   <Wallet className="w-4 h-4 text-gold-300" />
-                  <span>Confirm Pre-Order • Pay ₹{finalPayAmount.toFixed(1)}</span>
+                  <span>Confirm Order • Pay ₹{finalPayAmount.toFixed(1)}</span>
                   <ArrowRight className="w-4 h-4 text-gold-300" />
                 </>
               )}

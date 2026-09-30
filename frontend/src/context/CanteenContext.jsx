@@ -28,6 +28,7 @@ import {
   getApiBase
 } from '../services/api';
 import { CanteenContext } from './useCanteen';
+import { getInitialTheme, applyAppTheme } from '../utils/theme';
 
 const STORAGE_KEY_PRODUCTS = 'nutricanteen_products_v2';
 const STORAGE_KEY_STUDENT = 'nutricanteen_student_v2';
@@ -175,12 +176,34 @@ export const CanteenProvider = ({ children }) => {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isStaffTerminalOpen, setIsStaffTerminalOpen] = useState(false);
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
+  const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [banner, setBanner] = useState(null);
+
+  // 8. Global Theme & Native Status Bar Synchronization
+  const [darkMode, setDarkModeState] = useState(() => getInitialTheme());
+
+  const toggleDarkMode = React.useCallback(() => {
+    setDarkModeState((prev) => {
+      const next = !prev;
+      applyAppTheme(next);
+      return next;
+    });
+  }, []);
+
+  const setDarkMode = React.useCallback((val) => {
+    setDarkModeState(val);
+    applyAppTheme(val);
+  }, []);
+
+  useEffect(() => {
+    applyAppTheme(darkMode);
+  }, []);
 
   const backStateRef = React.useRef({
     isEditProfileOpen: false,
     isServerSettingsOpen: false,
+    isOrderHistoryOpen: false,
     isStudentIdModalOpen: false,
     isPreOrderModalOpen: false,
     isRechargeOpen: false,
@@ -195,6 +218,7 @@ export const CanteenProvider = ({ children }) => {
     backStateRef.current = {
       isEditProfileOpen,
       isServerSettingsOpen,
+      isOrderHistoryOpen,
       isStudentIdModalOpen,
       isPreOrderModalOpen,
       isRechargeOpen,
@@ -207,6 +231,7 @@ export const CanteenProvider = ({ children }) => {
   }, [
     isEditProfileOpen,
     isServerSettingsOpen,
+    isOrderHistoryOpen,
     isStudentIdModalOpen,
     isPreOrderModalOpen,
     isRechargeOpen,
@@ -229,6 +254,10 @@ export const CanteenProvider = ({ children }) => {
       }
       if (state.isServerSettingsOpen) {
         setIsServerSettingsOpen(false);
+        return true;
+      }
+      if (state.isOrderHistoryOpen) {
+        setIsOrderHistoryOpen(false);
         return true;
       }
       if (state.isStudentIdModalOpen) {
@@ -917,6 +946,7 @@ export const CanteenProvider = ({ children }) => {
           }
           // Immediate live refresh from backend
           await syncLiveStatus(true);
+        } else {
           const errorMsg =
             res.data?.data?.[0]?.message ||
             res.data?.message ||
@@ -973,7 +1003,7 @@ export const CanteenProvider = ({ children }) => {
       colors: ['#4e8d5a', '#cca95f']
     });
 
-    showToast('Pre-Order Placed! 🍱', `Token ${tokenNo} created for ${preOrderDateLabel}. Deducted ₹${orderTotal} from Wallet.`);
+    showToast('Order Placed Successfully! 🎉', `Token ${tokenNo} created for ${preOrderDateLabel}. Deducted ₹${orderTotal} from Wallet.`);
     setActiveTab('orders');
     return true;
   };
@@ -1296,6 +1326,8 @@ export const CanteenProvider = ({ children }) => {
         setIsStudentIdModalOpen,
         isEditProfileOpen,
         setIsEditProfileOpen,
+        isOrderHistoryOpen,
+        setIsOrderHistoryOpen,
 
         // Canteen Staff Terminal
         isStaffTerminalOpen,
@@ -1313,7 +1345,10 @@ export const CanteenProvider = ({ children }) => {
         setIsServerSettingsOpen,
         notification,
         showToast,
-        dismissToast
+        dismissToast,
+        darkMode,
+        toggleDarkMode,
+        setDarkMode
       }}
     >
       {children}

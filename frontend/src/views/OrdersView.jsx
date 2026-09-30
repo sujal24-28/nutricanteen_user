@@ -1,9 +1,31 @@
 import React from 'react';
 import { useCanteen } from '../context/useCanteen';
-import { CalendarCheck, Clock, ShoppingBag, Utensils, ArrowRight, UserCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  CalendarCheck,
+  Clock,
+  ShoppingBag,
+  Utensils,
+  ArrowRight,
+  UserCheck,
+  CheckCircle2,
+  AlertCircle,
+  History,
+  ChevronRight
+} from 'lucide-react';
 
 export const OrdersView = () => {
-  const { orders, setActiveTab, student } = useCanteen();
+  const { orders = [], setActiveTab, student, setIsOrderHistoryOpen } = useCanteen();
+
+  // Show ONLY active orders in pre-order section (pending, preparing, ready, scheduled)
+  const activeOrders = orders.filter((order) => {
+    const st = (order.status || '').toLowerCase().trim();
+    return st !== 'delivered' && st !== 'cancelled' && st !== 'completed';
+  });
+
+  const historyOrdersCount = orders.filter((order) => {
+    const st = (order.status || '').toLowerCase().trim();
+    return st === 'delivered' || st === 'cancelled' || st === 'completed';
+  }).length;
 
   return (
     <div className="pb-32 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+0.5rem))] px-4 space-y-3.5">
@@ -11,44 +33,66 @@ export const OrdersView = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-            My Pre-Orders
+            Active Orders
           </h2>
           <p className="text-[11px] text-gray-500 dark:text-leaf-300/70">
-            Meals scheduled for school pickup at the Canteen Counter
+            Meals in progress or ready for school counter pickup
           </p>
         </div>
-        <span className="bg-leaf-50 dark:bg-leaf-900/60 border border-leaf-200 dark:border-leaf-800 text-leaf-800 dark:text-leaf-300 font-bold text-xs px-2.5 py-0.5 rounded-full">
-          {orders.length} Orders
-        </span>
+
+        <div className="flex items-center gap-2">
+          <span className="bg-leaf-100 text-leaf-900 dark:bg-leaf-900/60 dark:text-leaf-200 border border-leaf-200 dark:border-leaf-800 font-extrabold text-xs px-2.5 py-0.5 rounded-full">
+            {activeOrders.length} Active
+          </span>
+          {historyOrdersCount > 0 && (
+            <button
+              onClick={() => setIsOrderHistoryOpen(true)}
+              className="flex items-center gap-1 text-[11px] font-bold text-leaf-800 dark:text-leaf-300 bg-white dark:bg-leaf-950/70 border border-leaf-200 dark:border-leaf-800 px-2.5 py-0.5 rounded-full hover:bg-leaf-50 active:scale-95 transition-all shadow-xs cursor-pointer"
+              title="View Order History"
+            >
+              <History className="w-3 h-3 text-gold-500" />
+              <span>History ({historyOrdersCount})</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {orders.length === 0 ? (
-        <div className="bg-white dark:bg-leaf-950/60 p-8 rounded-3xl border border-dashed border-leaf-200 dark:border-leaf-800 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-leaf-50 dark:bg-leaf-900/40 text-leaf-700 dark:text-gold-300 mx-auto flex items-center justify-center">
-            <ShoppingBag className="w-6 h-6" />
+      {activeOrders.length === 0 ? (
+        <div className="bg-white dark:bg-leaf-950/60 p-8 rounded-3xl border border-dashed border-leaf-200 dark:border-leaf-800 text-center space-y-3.5 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-leaf-50 dark:bg-leaf-900/40 text-leaf-700 dark:text-gold-300 mx-auto flex items-center justify-center">
+            <ShoppingBag className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="font-bold text-xs text-gray-800 dark:text-white">No active pre-orders</h3>
-            <p className="text-[11px] text-gray-400 dark:text-leaf-300/60 mt-1 max-w-xs mx-auto">
-              Pre-order your lunch or recess snacks 1 day in advance to avoid canteen queues!
+            <h3 className="font-bold text-sm text-gray-800 dark:text-white">No active orders right now</h3>
+            <p className="text-xs text-gray-400 dark:text-leaf-300/60 mt-1 max-w-xs mx-auto leading-relaxed">
+              When you pre-order meals for recess or lunch, active tokens will be tracked right here.
             </p>
           </div>
-          <button
-            onClick={() => setActiveTab('menu')}
-            className="bg-leaf-600 hover:bg-leaf-700 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>Browse Canteen Menu</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
+            <button
+              onClick={() => setActiveTab('menu')}
+              className="w-full sm:w-auto bg-leaf-600 hover:bg-leaf-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+            >
+              <span>Browse Canteen Menu</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            {historyOrdersCount > 0 && (
+              <button
+                onClick={() => setIsOrderHistoryOpen(true)}
+                className="w-full sm:w-auto bg-leaf-50 hover:bg-leaf-100 dark:bg-leaf-900/40 dark:hover:bg-leaf-900/60 text-leaf-800 dark:text-leaf-200 border border-leaf-200 dark:border-leaf-700 font-bold text-xs px-4 py-2.5 rounded-xl inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>View Order History ({historyOrdersCount})</span>
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
-          {orders.map((order) => {
+          {activeOrders.map((order) => {
             const st = (order.status || '').toLowerCase();
             const isReady = st === 'ready';
             const isPreparing = st === 'preparing';
-            const isDelivered = st === 'delivered';
-            const isCancelled = st === 'cancelled';
 
             return (
               <div
@@ -58,8 +102,6 @@ export const OrdersView = () => {
                     ? 'border-emerald-400 dark:border-emerald-600 ring-2 ring-emerald-400/20'
                     : isPreparing
                     ? 'border-amber-300 dark:border-amber-700/80'
-                    : isCancelled
-                    ? 'border-rose-200 dark:border-rose-900/50 opacity-80'
                     : 'border-leaf-100 dark:border-leaf-800/80'
                 }`}
               >
@@ -90,14 +132,6 @@ export const OrdersView = () => {
                       <Clock className="w-3 h-3 text-amber-600 animate-spin" />
                       PREPARING
                     </span>
-                  ) : isDelivered ? (
-                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
-                      COLLECTED
-                    </span>
-                  ) : isCancelled ? (
-                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800">
-                      CANCELLED (REFUNDED)
-                    </span>
                   ) : (
                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-leaf-50 text-leaf-800 border border-leaf-200 dark:bg-leaf-900/60 dark:text-leaf-300 dark:border-leaf-800">
                       SCHEDULED
@@ -107,14 +141,14 @@ export const OrdersView = () => {
 
                 {/* Items Breakdown */}
                 <div className="space-y-2 pt-1">
-                  {order.items.map((item, idx) => (
+                  {order.items?.map((item, idx) => (
                     <div key={idx} className="flex items-center justify-between text-xs">
                       <span className="text-gray-900 dark:text-white flex items-center gap-2 font-bold capitalize">
                         <span className="w-1.5 h-1.5 rounded-full bg-leaf-500"></span>
                         {item.name} <span className="text-gray-500 font-bold ml-1 normal-case">x {item.quantity}</span>
                       </span>
                       <span className="font-extrabold text-gray-900 dark:text-white">
-                        ₹{item.price * item.quantity}
+                        ₹{(Number(item.price) || 0) * (Number(item.quantity) || 1)}
                       </span>
                     </div>
                   ))}
@@ -138,26 +172,6 @@ export const OrdersView = () => {
                       <span className="font-bold block text-amber-800 dark:text-amber-300">Kitchen Preparing:</span>
                       <span className="text-amber-900 dark:text-amber-200/90 font-medium">
                         Canteen staff has started preparing your order fresh.
-                      </span>
-                    </div>
-                  </div>
-                ) : isCancelled ? (
-                  <div className="p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-800/60 flex items-start gap-2 text-[11px] text-rose-800 dark:text-rose-300">
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                    <div className="leading-snug">
-                      <span className="font-bold block">Order Cancelled:</span>
-                      <span className="text-rose-700 dark:text-rose-300/80">
-                        Amount has been credited back to your canteen wallet.
-                      </span>
-                    </div>
-                  </div>
-                ) : isDelivered ? (
-                  <div className="p-2.5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 flex items-start gap-2 text-[11px] text-gray-700 dark:text-gray-300">
-                    <CheckCircle2 className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
-                    <div className="leading-snug">
-                      <span className="font-bold block">Order Handed Over:</span>
-                      <span className="text-gray-500 dark:text-gray-400">
-                        Completed and collected at canteen counter.
                       </span>
                     </div>
                   </div>
@@ -188,6 +202,30 @@ export const OrdersView = () => {
               </div>
             );
           })}
+
+          {/* Past History Link Banner at bottom */}
+          {historyOrdersCount > 0 && (
+            <div className="pt-3 pb-1 text-center">
+              <button
+                onClick={() => setIsOrderHistoryOpen(true)}
+                className="w-full py-3 px-4 rounded-2xl bg-white dark:bg-leaf-950/70 border border-leaf-100 dark:border-leaf-800/80 text-xs font-bold text-leaf-800 dark:text-leaf-200 hover:bg-leaf-50 dark:hover:bg-leaf-900/50 flex items-center justify-between transition-all active:scale-[0.99] cursor-pointer shadow-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-leaf-100 dark:bg-leaf-900/60 text-leaf-800 dark:text-gold-300 flex items-center justify-center">
+                    <History className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Past Order History</p>
+                    <p className="text-[10px] text-gray-500 dark:text-leaf-300/60 font-medium">View {historyOrdersCount} completed or cancelled {historyOrdersCount === 1 ? 'order' : 'orders'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] text-leaf-700 dark:text-leaf-300 font-bold">
+                  <span>View</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+              </button>
+            </div>
+          )}
         </div>
       )}
       <div className="h-8" aria-hidden="true" />

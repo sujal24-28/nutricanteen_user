@@ -57,7 +57,11 @@ export const MenuCard = ({ item }) => {
   const sellingPrice = Number(item.price || 0);
   const mrp = item.mrp ? Number(item.mrp) : (item.originalPrice ? Number(item.originalPrice) : null);
   const hasDiscount = mrp && mrp > sellingPrice;
-  const discountPercentage = hasDiscount ? Math.round(((mrp - sellingPrice) / mrp) * 100) : 0;
+  const discountAmount = hasDiscount
+    ? Number.isInteger(mrp - sellingPrice)
+      ? mrp - sellingPrice
+      : Number((mrp - sellingPrice).toFixed(1))
+    : 0;
 
   // Ensure first letter of the name is always capitalized
   const rawName = (item.name || '').trim();
@@ -65,10 +69,10 @@ export const MenuCard = ({ item }) => {
 
   return (
     <div className="bg-white dark:bg-leaf-950/70 rounded-2xl p-3 border border-leaf-100 dark:border-leaf-800/60 shadow-xs hover:shadow-sm transition-all flex gap-3 relative overflow-hidden group">
-      {/* Discount Percentage Badge in top-right corner */}
-      {hasDiscount && discountPercentage > 0 && (
+      {/* Discount Amount Badge in top-right corner */}
+      {hasDiscount && discountAmount > 0 && (
         <span className="absolute top-2.5 right-2.5 z-10 bg-blue-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-xs tracking-wide">
-          {discountPercentage}% OFF
+          ₹{discountAmount} OFF
         </span>
       )}
 
@@ -127,7 +131,7 @@ export const MenuCard = ({ item }) => {
               className="bg-leaf-600 hover:bg-leaf-700 text-white dark:bg-leaf-700 dark:hover:bg-leaf-600 text-xs font-semibold px-3 py-1.5 rounded-xl shadow-xs hover:shadow active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Pre-Order</span>
+              <span>Add to Cart</span>
             </button>
           ) : (
             <div className="flex items-center bg-leaf-50 dark:bg-leaf-900/80 border border-leaf-200 dark:border-leaf-700 rounded-xl p-0.5 text-xs font-bold shadow-xs">

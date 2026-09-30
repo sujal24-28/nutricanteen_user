@@ -21,6 +21,7 @@ import { WalletRechargeModal } from './components/wallet/WalletRechargeModal';
 import { StudentIdCardModal } from './components/canteen/StudentIdCardModal';
 import { ServerSettingsModal } from './components/common/ServerSettingsModal';
 import { EditProfileModal } from './components/auth/EditProfileModal';
+import { OrderHistoryModal } from './components/canteen/OrderHistoryModal';
 
 import {
   CheckCircle2,
@@ -75,6 +76,7 @@ const CanteenAppContent = () => {
       <StudentIdCardModal />
       <ServerSettingsModal />
       <EditProfileModal isOpen={isEditProfileOpen} onClose={() => setIsEditProfileOpen(false)} />
+      <OrderHistoryModal />
 
       {/* Global Toast Notification */}
       {notification && (
